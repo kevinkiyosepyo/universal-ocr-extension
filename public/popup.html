@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Universal OCR</title><link rel="stylesheet" href="styles.css"></head>
+<body class="popup">
+  <header class="popup-header"><span class="wordmark">Universal <b>OCR</b></span><span class="local-tag"><i></i> Local</span></header>
+  <main>
+    <h1>Make any text<br>yours to use.</h1>
+    <p class="muted">Read text from an image or anything you can see on a webpage.</p>
+    <div class="popup-actions">
+      <button id="region" class="primary">Select a region <span aria-hidden="true">↗</span></button>
+      <button id="viewport" class="secondary">Read the visible page</button>
+      <button id="workspace" class="text-button">Upload or paste an image <span aria-hidden="true">→</span></button>
+    </div>
+    <p id="popup-status" role="status" aria-live="polite"></p>
+    <footer>Runs on your device. No account needed.<br><span class="shortcut">Shortcut: Alt / Option + Shift + O</span></footer>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

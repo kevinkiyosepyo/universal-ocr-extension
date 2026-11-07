@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Universal OCR — Workspace</title><link rel="stylesheet" href="styles.css"></head>
+<body>
+  <header class="app-header"><a class="wordmark" href="workspace.html">Universal <b>OCR</b></a><span class="local-tag"><i></i> On-device recognition</span></header>
+  <main class="workspace">
+    <div class="page-heading"><div><p class="eyebrow">IMAGE TO TEXT</p><h1>Text, out of the image.</h1><p class="muted">Capture it. Read it. Put it to work.</p></div><button id="clear" class="secondary" disabled>Clear workspace</button></div>
+    <div class="workspace-grid">
+      <aside class="settings-panel">
+        <h2>Recognition</h2>
+        <label for="language">Text language</label>
+        <select id="language"><option value="eng">English</option><option value="spa">Spanish</option><option value="fra">French</option><option value="deu">German</option><option value="jpn">Japanese</option><option value="kor">Korean</option><option value="chi_sim">Chinese (simplified)</option></select>
+        <label for="mode">Text layout</label>
+        <select id="mode"><option value="sparse">Text anywhere</option><option value="block">Paragraph / document</option><option value="line">Single line / code</option><option value="word">Single word</option></select>
+        <label for="processing">Image cleanup</label>
+        <select id="processing"><option value="auto">Automatic</option><option value="original">Keep original colors</option><option value="contrast">High contrast</option></select>
+        <details><summary>Character options</summary>
+          <label for="characters">Characters to recognize</label>
+          <select id="characters"><option value="all">Any character</option><option value="digits">Digits only</option><option value="alphanumeric">Letters &amp; digits</option><option value="custom">Custom set</option></select>
+          <div id="custom-set" hidden><label for="whitelist">Allowed characters</label><input id="whitelist" maxlength="256" placeholder="e.g. ABCDEF0123456789" autocomplete="off"><p class="hint">Enter each character literally. A-Z is not a range.</p></div>
+          <label class="check-label"><input type="checkbox" id="removeSpaces">Remove all spaces</label>
+        </details>
+        <div class="local-note"><span class="note-dot" aria-hidden="true"></span><p><strong>Private by design</strong>Your images stay on this device. All seven language models are included.</p></div>
+        <a class="help-link" href="help.html" target="_blank" rel="noopener">How to capture a page ↗</a>
+      </aside>
+      <div class="main-panels">
+        <section class="image-panel panel" aria-labelledby="source-heading">
+          <div class="panel-heading"><h2 id="source-heading"><span class="step-number">01</span> Source image</h2><div class="heading-actions"><button id="rotate" class="small-button" disabled>Rotate 90°</button><button id="choose" class="small-button">Choose image</button></div></div>
+          <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/bmp,image/gif" hidden>
+          <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Choose an image, drop a file, or paste a screenshot">
+            <div id="empty-source" class="empty-source"><div class="scan-icon" aria-hidden="true"><span>Aa</span></div><h3>Start with an image</h3><p>Drop a file here, click to browse,<br>or paste a screenshot with <kbd>⌘ / Ctrl V</kbd>.</p><span class="file-types">PNG · JPEG · WebP · BMP · GIF &nbsp; / &nbsp; up to 15 MB</span></div>
+            <img id="preview" alt="Image selected for text recognition" hidden>
+          </div>
+          <div class="source-caption"><span id="source-name">No image selected</span><span id="dimensions"></span></div>
+          <div class="recognize-row"><p id="image-hint" class="hint">Tip: a tight crop around the text usually works best.</p><button id="recognize" class="primary" disabled>Read text <span aria-hidden="true">→</span></button><button id="cancel" class="secondary" hidden>Cancel</button></div>
+          <div id="progress-area" class="progress-area" hidden><progress id="progress" max="1" value="0"></progress></div>
+        </section>
+        <section class="result-panel panel" aria-labelledby="result-heading">
+          <div class="panel-heading"><h2 id="result-heading"><span class="step-number">02</span> Recognized text</h2><span id="metrics" class="metrics"></span></div>
+          <label class="sr-only" for="result">Recognized text, editable</label>
+          <textarea id="result" placeholder="Your text will appear here. You can edit it before copying or inserting." spellcheck="false"></textarea>
+          <div class="result-actions"><button id="copy" class="secondary" disabled>Copy text</button><button id="download" class="text-button" disabled>Save .txt</button><button id="insert" class="text-button" disabled>Insert into page ↗</button><span id="char-count" class="hint">0 characters</span></div>
+        </section>
+        <p id="status" class="status" role="status" aria-live="polite">Ready when you are.</p>
+      </div>
+    </div>
+    <footer class="workspace-footer"><span>Images are processed locally. Closing this tab clears its image and text.</span><span>Universal OCR · 1.0</span></footer>
+  </main>
+  <script type="module" src="workspace.js"></script>
+</body>
+</html>
