@@ -6,10 +6,13 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 await mkdir(join(root, 'artifacts'), { recursive: true });
-const name = `universal-ocr-${version}-chromium.zip`;
+for (const [targetName, directory] of [['chromium', 'dist'], ['firefox', 'dist-firefox'], ['edge', 'dist-edge']]) {
+const name = `universal-ocr-${version}-${targetName}.zip`;
 const target = join(root, 'artifacts', name);
 await rm(target, { force: true });
-execFileSync('zip', ['-q', '-r', target, '.', '-x', '*.DS_Store'], { cwd: join(root, 'dist') });
+execFileSync('zip', ['-q', '-r', target, '.', '-x', '*.DS_Store'], { cwd: join(root, directory) });
 const checksum = createHash('sha256').update(await readFile(target)).digest('hex');
 await writeFile(join(root, 'artifacts', `${name}.sha256`), `${checksum}  ${name}\n`);
 console.log(`Packaged ${target}`);
+
+}

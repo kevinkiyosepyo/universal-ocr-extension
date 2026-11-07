@@ -1,3 +1,4 @@
+import { api } from './platform.js';
 import { createWorker } from 'tesseract.js';
 import { cleanText, recognitionParameters, sanitizeSettings } from './settings.js';
 import { prepareImage } from './image.js';
@@ -27,9 +28,9 @@ export async function recognize(image, options, { signal, onProgress = () => {} 
     let rejectWorker;
     const workerError = new Promise((_, reject) => { rejectWorker = reject; });
     const pending = createWorker(settings.language, 1, {
-      workerPath: chrome.runtime.getURL('vendor/worker.min.js'),
-      corePath: chrome.runtime.getURL('vendor/core'),
-      langPath: chrome.runtime.getURL('vendor/lang'),
+      workerPath: api.runtime.getURL('vendor/worker.min.js'),
+      corePath: api.runtime.getURL('vendor/core'),
+      langPath: api.runtime.getURL('vendor/lang'),
       workerBlobURL: false,
       cacheMethod: 'none',
       logger: (message) => { if (!controller.signal.aborted) onProgress(message); },

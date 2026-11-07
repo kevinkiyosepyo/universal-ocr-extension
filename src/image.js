@@ -16,8 +16,14 @@ export async function fileDataURL(file) {
 export async function decodeImage(dataURL) {
   if (!/^data:image\/(png|jpeg|webp|bmp|gif);base64,/i.test(dataURL)) throw new Error('Unsupported image data.');
   const image = new Image();
-  image.src = dataURL;
-  try { await image.decode(); } catch { throw new Error('This image could not be decoded. Try another file.'); }
+  try {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Image loading timed out.')), 15_000);
+      image.onload = () => { clearTimeout(timer); resolve(); };
+      image.onerror = () => { clearTimeout(timer); reject(new Error('Image loading failed.')); };
+      image.src = dataURL;
+    });
+  } catch { throw new Error('This image could not be decoded. Try another file.'); }
   if (image.naturalWidth * image.naturalHeight > 80_000_000) throw new Error('This image is too large. Resize it below 80 megapixels.');
   return image;
 }

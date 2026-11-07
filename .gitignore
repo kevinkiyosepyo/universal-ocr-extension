@@ -8,3 +8,8 @@ output/
 !.env.example
 .DS_Store
 *.log
+.local/
+dist-*/
+coverage/
+__pycache__/
+*.pyc

@@ -85,6 +85,11 @@ try {
   await page.getByLabel('Text language').selectOption('eng');
   await upload(sample);
   await expectText('HELLO OCR 4827');
+  const visualPending = context.waitForEvent('page');
+  await page.getByRole('button', { name: 'Visual tools', exact: true }).click();
+  const visual = await visualPending; await visual.waitForFunction(() => document.querySelector('#task-preview')?.getAttribute('src')?.startsWith('data:image/'));
+  assert.equal(await worker.evaluate(async () => (await chrome.storage.session.get('visualInput')).visualInput), undefined);
+  await visual.close(); report.push({ check: 'Visual workbench image handoff', result: 'Image transferred and temporary session record consumed' });
   const downloadPending = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save .txt' }).click();
   const download = await downloadPending;

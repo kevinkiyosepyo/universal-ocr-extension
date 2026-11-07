@@ -1,3 +1,5 @@
+import './theme.js';
+import { api } from './platform.js';
 import { DEFAULTS, LANGUAGES, sanitizeSettings } from './settings.js';
 import { cropImage, decodeImage, fileDataURL, rotateImage } from './image.js';
 import { recognize } from './ocr.js';
@@ -21,6 +23,7 @@ function refresh() {
   $('cancel').hidden = !busy;
   $('progress-area').hidden = !busy;
   $('rotate').disabled = !sourceImage || locked;
+  $('visual-tools').disabled = !sourceImage || locked;
   $('choose').disabled = locked; $('file').disabled = locked;
   $('dropzone').setAttribute('aria-disabled', String(locked));
   $('clear').disabled = locked || (!sourceImage && !$('result').value);
@@ -136,7 +139,7 @@ $('download').addEventListener('click', () => {
 });
 $('insert').addEventListener('click', async () => {
   try {
-    const response = await chrome.runtime.sendMessage({ type: 'INSERT_TEXT', source: sourcePage, text: $('result').value });
+    const response = await api.runtime.sendMessage({ type: 'INSERT_TEXT', source: sourcePage, text: $('result').value });
     if (!response?.ok) throw new Error(response?.error || 'Could not open the source page.');
     status('Choose a text field on the source page. Press Esc there to cancel.');
   } catch (error) { status(error.message, true); }
@@ -144,20 +147,20 @@ $('insert').addEventListener('click', async () => {
 for (const id of settingIds) {
   $(id).addEventListener(id === 'whitelist' ? 'input' : 'change', () => {
     refresh();
-    void chrome.storage.local.set({ settings: settings() }).catch(() => status('Settings could not be saved. They still apply in this tab.', true));
+    void api.storage.local.set({ settings: settings() }).catch(() => status('Settings could not be saved. They still apply in this tab.', true));
   });
 }
 
 async function init() {
   loading = true; refresh();
   try {
-    const stored = sanitizeSettings((await chrome.storage.local.get('settings')).settings);
+    const stored = sanitizeSettings((await api.storage.local.get('settings')).settings);
     for (const id of settingIds) { if (id === 'removeSpaces') $(id).checked = stored[id]; else $(id).value = stored[id]; }
     const captureId = location.hash.slice(1);
     const initialError = new URL(location.href).searchParams.get('error');
     if (initialError) status(initialError, true);
     if (captureId) {
-      const response = await chrome.runtime.sendMessage({ type: 'CLAIM_CAPTURE', id: captureId });
+      const response = await api.runtime.sendMessage({ type: 'CLAIM_CAPTURE', id: captureId });
       if (!response?.ok) throw new Error(response?.error || 'Capture unavailable.');
       const capture = response.value;
       await setSource(await cropImage(capture.image, capture.crop, capture.viewport), capture.source.title, capture.source);
@@ -168,3 +171,5 @@ async function init() {
   if (sourceImage) await readText();
 }
 void init();
+
+$('visual-tools').addEventListener('click', async () => { try { const response = await api.runtime.sendMessage({ type: 'OPEN_VISUAL', image: sourceImage }); if (!response?.ok) throw new Error(response?.error); } catch (error) { status(error.message, true); } });

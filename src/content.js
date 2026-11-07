@@ -1,8 +1,10 @@
+import { api } from './platform.js';
 import { selectionRect } from './geometry.js';
 
 // The script is injected only after an extension action. Reuse its listener on repeated captures.
 if (!globalThis.__universalOCRInstalled) {
   globalThis.__universalOCRInstalled = true;
+  const documentNonce = crypto.randomUUID();
   let dispose = () => {};
 
   function surface() {
@@ -46,7 +48,7 @@ if (!globalThis.__universalOCRInstalled) {
     const cancel = () => {
       if (completed) return;
       completed = true; cleanup();
-      void chrome.runtime.sendMessage({ type: 'REGION_CANCEL', id }).catch(() => {});
+      void api.runtime.sendMessage({ type: 'REGION_CANCEL', id, documentNonce }).catch(() => {});
     };
     dispose = cancel;
     const screen = document.createElement('div'); screen.className = 'screen';
@@ -73,7 +75,7 @@ if (!globalThis.__universalOCRInstalled) {
       if (rect.width < 4 || rect.height < 4) { ui.label.textContent = 'Drag a larger box around the text.'; return; }
       completed = true; cleanup();
       try {
-        const response = await chrome.runtime.sendMessage({ type: 'REGION_DONE', id, rect });
+        const response = await api.runtime.sendMessage({ type: 'REGION_DONE', id, rect, documentNonce });
         if (!response?.ok) toast(response?.error || 'Capture failed. Please try again.');
       } catch { toast('Capture failed. Reopen Universal OCR and retry.'); }
     }, { signal });
@@ -122,14 +124,14 @@ if (!globalThis.__universalOCRInstalled) {
     return { ok: true };
   }
 
-  chrome.runtime.onMessage.addListener((message, sender, respond) => {
-    if (sender.id !== chrome.runtime.id) return;
+  api.runtime.onMessage.addListener((message, sender, respond) => {
+    if (sender.id !== api.runtime.id) return;
     if (message.type === 'VIEWPORT') {
       dispose();
-      requestAnimationFrame(() => requestAnimationFrame(() => respond({ width: innerWidth, height: innerHeight })));
+      requestAnimationFrame(() => requestAnimationFrame(() => respond({ width: innerWidth, height: innerHeight, documentNonce })));
       return true;
     }
     if (message.type === 'SELECT_REGION') respond(selectRegion(message));
-    if (message.type === 'CHOOSE_FIELD') respond(chooseField(message.text));
+    if (message.type === 'CHOOSE_FIELD') respond(message.documentNonce === documentNonce ? chooseField(message.text) : { ok: false, error: 'The source document changed.' });
   });
 }

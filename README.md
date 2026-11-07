@@ -1,130 +1,113 @@
 # Universal OCR
 
-A private, independent browser extension that turns images and page regions
-into editable text. Recognition runs locally with Tesseract.js; no API key,
-account, server, or runtime download is needed.
+An independent, private browser extension and local recognition service. Read text from images and page regions, analyze visual challenges, and configure automation for specific sites. No paid CAPTCHA subscription is required for the implemented local tools.
 
-![Universal OCR workspace](docs/workspace.png)
+![Universal OCR workbench](docs/workbench.png)
 
-This project was requested to provide the general-purpose OCR feature listed
-as “Coming Soon” in [CaptchaSonic-Extension](https://github.com/Captcha-Sonic/CaptchaSonic-Extension).
-That public repository contains documentation and packaged releases, but no
-extension source at commit `6162d94`. Its `Licence` file restricts modification,
-despite the README describing an MIT license. This is a new implementation
-that can be installed alongside CaptchaSonic. It does not include or modify
-CaptchaSonic’s proprietary software or replicate its other solvers.
+**This is not full CaptchaSonic solver parity.** Universal OCR and the local image tools work. Provider-specific end-to-end CAPTCHA solving on iCIMS, TikTok, Ashby, Lever, and the other advertised providers remains unverified or unimplemented. Detection is never presented as a successful solve. See the precise [capability matrix](docs/COMPATIBILITY.md).
 
-## Install
+The referenced [CaptchaSonic repository](https://github.com/Captcha-Sonic/CaptchaSonic-Extension) contains documentation and release assets, but no extension source at the inspected commit. This project includes none of its code, binaries, artwork, or branding.
 
-1. Download and unzip `universal-ocr-1.0.0-chromium.zip` from this repository’s Releases.
-2. In Chrome, open `chrome://extensions` and enable **Developer mode**.
-3. Choose **Load unpacked**, then select the extracted folder containing `manifest.json`.
-4. Pin **Universal OCR** in the browser’s Extensions menu.
+## Install the extension
 
-For Edge, use `edge://extensions`; Brave uses `brave://extensions`. Requires
-desktop Chromium with Chrome 116 APIs or newer. Firefox and mobile builds are
-not included.
+1. Download and extract the v2.0.0 ZIP for your browser from [Releases](https://github.com/kevinkiyosepyo/universal-ocr-extension/releases/tag/v2.0.0).
+2. **Chrome / Brave / Chromium:** open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
+3. **Edge:** use `edge://extensions` and the Edge package with the same steps.
+4. **Firefox 140+:** open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select the extracted `manifest.json`. This unsigned private build must be reloaded after restarting Firefox; permanent installation requires Mozilla signing.
+5. Pin **Universal OCR**. Its popup opens text capture, provider detection, and the visual tools / site-rule dashboard.
 
-## Use
+Chromium requires Chrome 116 APIs or newer. Edge shares the Chromium implementation; a separate Edge runtime has not been tested. Firefox text recognition has been tested in the real browser. Mobile browser installation and touch automation have not been validated.
 
-- **Page region:** open the toolbar popup → **Select a region** → drag around the text.
-- **Whole viewport:** choose **Read the visible page**.
-- **Right-click / shortcut:** choose **Read text in a region**, or press **Alt / Option + Shift + O**.
-- **Your own image:** open **Upload or paste an image**; browse, drop a file, or paste a screenshot.
-- **Short codes:** select **Single line / code** or **Single word**, optionally limit characters and remove spaces.
-- **Output:** edit, copy, save as `.txt`, or **Insert into page** and click a text field on the original page.
+## Read text immediately
 
-Recognition starts automatically when an image is loaded. After changing
-settings or rotating, click **Read text** again. **Cancel** stops recognition;
-**Clear workspace** releases the current image and text.
+The extension packages Tesseract, WebAssembly, and seven language models. Text OCR works offline without a service, key, or runtime model download.
 
-Field insertion replaces the selected field’s contents, dispatches `input`
-and `change`, and does not submit forms. It targets the original document;
-after navigation, capture again or use Copy text. Fields inside embedded
-frames are not supported.
+- **Select a region**, capture the visible page, or use **Alt / Option + Shift + O**.
+- Upload, paste, or drop a PNG, JPEG, WebP, BMP, or still GIF into the text workspace.
+- Choose English, Spanish, French, German, Japanese, Korean, or simplified Chinese.
+- For short codes, choose Single line / Single word, restrict characters, and remove spaces.
+- Edit, copy, save, or insert the result into a text field on the original document. Insertion does not submit forms and refuses a document that has navigated since capture.
+- **Visual tools** in the text workspace transfers the captured image into the visual workbench.
 
-### Languages and accuracy
+OCR works best on printed text. Handwriting, distorted text, unusual fonts, and cluttered backgrounds can require correction. Confidence is an estimate, not a guarantee.
 
-English, Spanish, French, German, Japanese, Korean, and simplified Chinese are
-bundled. Choose the language matching the source. Input formats: PNG, JPEG,
-WebP, BMP, and GIF (still frame), up to 15 MB. Use screenshots for PDFs.
+## Start the companion service
 
-OCR works best on readable printed text. Handwriting, heavily distorted text,
-unusual fonts, and complex backgrounds can require corrections. “Universal”
-means the tool accepts general images and visible page regions; it does not
-guarantee recognition of every CAPTCHA or solve image puzzles. The confidence
-score is an estimate, not an accuracy guarantee. Try a tight crop, different
-layout, original colors, or high contrast when a result is poor.
+Requires Node.js 22+. From this checkout:
 
-## Privacy and permissions
+```sh
+npm ci
+npm start
+```
 
-All code, WebAssembly, and model files are packaged locally. The extension’s
-content security policy blocks external network connections. There is no
-analytics or cloud OCR.
+In extension **Settings**, use `http://127.0.0.1:47821` and copy the contents of `.local/api-key` into Pairing key. Choose **Save connection**, then **Test connection**. The key is created on first start with owner-only permissions. Do not publish it.
 
-- `activeTab` and `scripting`: capture and select text only after you invoke the extension; no permanent access to all sites.
-- `contextMenus`: adds the region capture menu item.
-- `storage`: saves recognition preferences locally and temporarily holds captures in browser session storage.
+The service supports OCR, piece matching, rotation comparison, and SHA-256 proof of work. Grid selection, click points, and bounding boxes also need [Ollama](https://ollama.com/) and a local vision model. In separate terminals:
 
-Images and results live in workspace memory. Closing/reloading the workspace
-clears them. Pending captures are removed when opened, rejected after ten
-minutes, and purged on the next capture; session storage also clears when the
-browser exits. Recognition results are not saved to browser storage. Saving
-or copying output is an explicit action.
+```sh
+npm run vision
+```
 
-Browser settings pages, extension stores, and some PDF viewers restrict
-injection/capture. Upload or paste a screenshot there. Local file pages may
-need **Allow access to file URLs** enabled in the extension’s settings.
+```sh
+npm run vision:pull
+```
+
+The one-time `qwen3-vl:4b-instruct` download is about 3.3 GB. Models stay in `.local/models`; this setup uses port 11435 and does not change the normal Ollama instance on 11434. Keep `npm start` and `npm run vision` running while using visual analysis. On CPU-only machines recognition can take longer. See [API configuration and examples](docs/API.md) to select a different model or endpoint.
+
+The visual workbench shows selected cells, points, and boxes as overlays. Slider comparison needs an original, unscrambled background and matching piece at the same scale, at most 1200 × 1200. Rotation needs a matching upright reference. Generic proof of work is not a provider token service.
+
+## Configure a site rule
+
+Open **Site rules**, add an exact page or frame origin and CSS selectors, choose a task, then save and grant access to that site. Enable the global automation switch and reload the target page.
+
+OCR rules use the bundled browser engine. Grid, point, and slider rules use the configured service. Rules have confidence thresholds, bounded attempts per image, changed-image checks, and a pause switch. Activities distinguish **recognized**, **applied**, and **verified**. Verification requires a visible success selector; an applied result alone is not success.
+
+Optional verification clicks are limited to a non-submit button labeled **Verify** or **Check**. Application Submit controls are rejected. Partial interactions are not automatically replayed. DOM events remain untrusted; widgets that require trusted mouse input can reject them. Cross-origin image canvases may require screenshot capture instead of a direct image selector.
+
+For job applications, preserve the original application session and existing submission journal. A CAPTCHA after Submit does not establish an employer receipt. This build did not retry any of the reported uncertain applications.
+
+## Settings and privacy
+
+- Light, dark, and system themes are shared across extension pages.
+- Site access is optional and requested only for configured origins. Automation defaults to paused, with no rules.
+- HTTP service connections are limited to localhost; remote endpoints require HTTPS. Explicitly selected images are transmitted to the configured service. The service uses the configured Ollama endpoint for visual tasks. The packaged default endpoints are local.
+- Requests use timestamped HMAC signatures, fresh nonces, replay protection, and bounded retries. The key lives in extension local storage, not sync storage.
+- Activity is stored locally, capped at 200 events, and omits images and recognized text. Clear it in Activity. The service logs no image bodies or results and retains task records only temporarily.
+- Capture handoffs use browser session storage and a ten-minute expiry check. Opening a handoff consumes it; closing/reloading a workspace releases its image and result. Browser exit clears session storage.
+- Optional proxy controls affect the current browser profile. They let you select a supplied proxy, move to the next one, check an HTTPS health URL, and restore the prior browser configuration. Localhost is bypassed. Embedded proxy credentials and automatic timed rotation are not supported.
+- Browser-internal pages and extension stores restrict capture. Upload a screenshot there. Local file pages may require Allow access to file URLs.
 
 ## Build and verify
-
-Requires Node.js 22+, npm, and `zip` (for packaging).
 
 ```sh
 npm ci
 npm run check
+npm run build:all
+npx playwright install chromium firefox
+npm run test:browser
+npm run test:automation
+npm run test:firefox
+npm run lint:firefox
+npm run test:vision  # requires the running local vision model
 npm run package
 ```
 
-Load the resulting `dist/` folder as an unpacked extension. Packages and
-checksums go to `artifacts/`. Models come from pinned npm packages and their
-integrity hashes in `package-lock.json`; building needs internet access to
-install packages, but the installed extension does not.
+Builds go to `dist/`, `dist-firefox/`, and `dist-edge/`. ZIPs and SHA-256 checksums go to `artifacts/`. Linux browser checks need Playwright's browser system dependencies and CJK fonts (`npx playwright install --with-deps chromium firefox`, then install `fonts-noto-cjk`).
 
-`npm test` checks high-DPI crop mapping, selection boundaries, image memory
-limits, settings validation, text normalization, and real OCR against printed
-text and numeric fixtures using a local model.
-
-For the browser suite:
-
-```sh
-npx playwright install chromium
-npm run build
-npm run test:browser
-```
-
-The browser suite loads the actual extension in isolated Chromium, disables
-network access, and verifies recognition in all seven languages, character
-options, image cleanup, cancellation and retry, blank/corrupt/oversized input,
-rotation, text export, and clearing. Install system CJK fonts if your platform
-does not provide them. Reports and screenshots go to `output/playwright/smoke/`.
-
-For manual capture and field-insertion verification, run `npm run demo`, open
-the printed-code fixture at `http://127.0.0.1:4173`, and use the real extension
-shortcut. The page counts input/change events and form submissions.
-
-See [verification notes](docs/verification.md) for the checked workflows and
-their limits.
+Tests cover real OCR, geometry, settings, authenticated API requests, Unicode transport, cancellation, idempotency, image comparison, browser rule execution, application-submit rejection, stale-document protection, themes, proxy restoration, and real local vision inference. Browser tests use disposable profiles and synthetic fixtures. Firefox uses a temporary add-on and a test-only DOM driver because Playwright cannot instrument its extension-process tabs. No test opens or submits real applications. See [verification evidence and limits](docs/verification.md).
 
 ## Source map
 
-| File | Responsibility |
+| Path | Purpose |
 | --- | --- |
-| `src/background.js` | Capture routing, temporary image handoff, original-document insertion |
-| `src/content.js` | Frozen region selector and field picker |
-| `src/ocr.js` | Local Tesseract worker, progress, cancellation, timeout |
-| `src/image.js` | Input validation, crop, rotation, cleanup and scaling |
-| `src/workspace.js` | Image input, settings, recognition and text output |
-| `scripts/build.mjs` | Bundle code, worker, WebAssembly, languages, icons and notices |
+| `src/background.js`, `src/content.js` | Page capture, frozen region selection, original-document field insertion |
+| `src/ocr.js`, `src/image.js` | Bundled OCR, image processing, cancellation |
+| `src/control.js`, `public/control.html` | Workbench, rules, activity, compatibility, settings |
+| `src/automation-background.js`, `src/automation.js` | Permission-scoped rules and browser actions |
+| `src/providers.js`, `src/proxy.js` | Provider detection and optional proxy controls |
+| `shared/` | Protocol validation, request signing, polling client |
+| `server/` | Loopback HTTP service, bounded worker queue, OCR / visual engines |
+| `examples/` | Node, Python, Playwright / Puppeteer, and Selenium integration |
+| `scripts/` | Browser builds, packaging, local model setup, smoke tests |
 
-See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependencies and licenses.
+Dependency versions and integrity hashes are pinned in `package-lock.json`. See [third-party notices](THIRD_PARTY_NOTICES.md).

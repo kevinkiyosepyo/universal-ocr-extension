@@ -6,15 +6,18 @@ import { fileURLToPath } from 'node:url';
 import { LANGUAGES } from '../src/settings.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const dist = join(root, 'dist');
+const target = process.argv[2] || 'chromium';
+if (!['chromium', 'firefox', 'edge'].includes(target)) throw new Error('Unknown browser target.');
+const dist = join(root, target === 'chromium' ? 'dist' : `dist-${target}`);
 await rm(dist, { recursive: true, force: true });
 await cp(join(root, 'public'), dist, { recursive: true });
 await build({
-  absWorkingDir: root, entryPoints: ['src/background.js', 'src/popup.js', 'src/workspace.js'],
-  outdir: dist, bundle: true, format: 'esm', platform: 'browser', target: 'chrome116',
+  absWorkingDir: root, entryPoints: ['src/popup.js', 'src/workspace.js', 'src/control.js', 'src/engine.js'],
+  outdir: dist, bundle: true, format: 'esm', platform: 'browser', target: target === 'firefox' ? 'firefox140' : 'chrome116',
   minify: false, legalComments: 'eof', logLevel: 'info',
 });
-await build({ absWorkingDir: root, entryPoints: ['src/content.js'], outdir: dist, bundle: true, format: 'iife', target: 'chrome116', logLevel: 'info' });
+await build({ absWorkingDir: root, entryPoints: ['src/background.js'], outdir: dist, bundle: true, format: target === 'firefox' ? 'iife' : 'esm', platform: 'browser', target: target === 'firefox' ? 'firefox140' : 'chrome116', logLevel: 'info' });
+await build({ absWorkingDir: root, entryPoints: ['src/content.js', 'src/automation.js'], outdir: dist, bundle: true, format: 'iife', target: 'chrome116', logLevel: 'info' });
 await mkdir(join(dist, 'vendor/core'), { recursive: true });
 await mkdir(join(dist, 'vendor/lang'), { recursive: true });
 await cp(join(root, 'node_modules/tesseract.js/dist/worker.min.js'), join(dist, 'vendor/worker.min.js'));
@@ -28,7 +31,7 @@ for (const language of Object.keys(LANGUAGES)) {
 }
 await mkdir(join(dist, 'licenses'), { recursive: true });
 await cp(join(root, 'licenses'), join(dist, 'licenses'), { recursive: true });
-for (const dependency of ['tesseract.js', 'tesseract.js-core', 'bmp-js', 'idb-keyval', 'is-url', 'regenerator-runtime', 'wasm-feature-detect', 'zlibjs']) {
+for (const dependency of ['tesseract.js', 'tesseract.js-core', 'bmp-js', 'idb-keyval', 'is-url', 'regenerator-runtime', 'wasm-feature-detect', 'zlibjs', 'webextension-polyfill']) {
   const dir = join(root, 'node_modules', dependency);
   for (const name of await readdir(dir)) {
     if (/^(license|copying|notice)(\.|$)/i.test(name)) await cp(join(dir, name), join(dist, 'licenses', `${dependency}-${name}`));
@@ -41,6 +44,13 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" vi
 for (const size of [16, 32, 48, 128]) await sharp(Buffer.from(svg)).resize(size, size).png().toFile(join(dist, `icons/${size}.png`));
 const manifest = JSON.parse(await readFile(join(dist, 'manifest.json'), 'utf8'));
 const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+if (target === 'firefox') {
+  delete manifest.minimum_chrome_version;
+  manifest.background = { scripts: ['background.js'] };
+  manifest.permissions = manifest.permissions.filter((item) => item !== 'offscreen');
+  manifest.browser_specific_settings = { gecko: { id: 'universal-ocr@private.local', strict_min_version: '140.0', data_collection_permissions: { required: ['none'] } } };
+}
+await writeFile(join(dist, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 if (manifest.version !== pkg.version) throw new Error('Package and manifest versions must match.');
 await writeFile(join(dist, 'BUILD_INFO.json'), JSON.stringify({ version: pkg.version, engine: 'tesseract.js 7.0.0', languages: Object.keys(LANGUAGES) }, null, 2) + '\n');
 console.log(`Built ${resolve(dist)}`);

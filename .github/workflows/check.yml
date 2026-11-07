@@ -17,6 +17,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium firefox
       - run: sudo apt-get install -y fonts-noto-cjk
       - run: npm run test:browser
+      - run: npm run test:automation
+      - run: npm run build:firefox
+      - run: npm run lint:firefox
+      - run: npm run test:firefox

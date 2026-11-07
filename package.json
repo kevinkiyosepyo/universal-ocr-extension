@@ -1,8 +1,8 @@
 {
   "name": "universal-ocr-extension",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Local image and page-region text recognition for Chromium browsers",
+  "description": "Local OCR, visual recognition tools, and opt-in browser automation",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -13,7 +13,17 @@
     "test": "node --test tests/*.test.mjs",
     "test:browser": "node scripts/smoke-browser.mjs",
     "check": "npm test && npm run build",
-    "package": "npm run check && node scripts/package.mjs"
+    "package": "npm run check && npm run build:firefox && npm run build:edge && node scripts/package.mjs",
+    "build:firefox": "node scripts/build.mjs firefox",
+    "build:edge": "node scripts/build.mjs edge",
+    "build:all": "npm run build && npm run build:firefox && npm run build:edge",
+    "start": "node server/index.mjs",
+    "vision": "node scripts/vision.mjs",
+    "vision:pull": "node scripts/vision.mjs --pull",
+    "test:automation": "node scripts/smoke-automation.mjs",
+    "test:vision": "node scripts/smoke-vision.mjs",
+    "test:firefox": "node scripts/smoke-firefox.mjs",
+    "lint:firefox": "web-ext lint --source-dir dist-firefox"
   },
   "dependencies": {
     "@tesseract.js-data/chi_sim": "1.0.0",
@@ -23,11 +33,13 @@
     "@tesseract.js-data/jpn": "1.0.0",
     "@tesseract.js-data/kor": "1.0.0",
     "@tesseract.js-data/spa": "1.0.0",
-    "tesseract.js": "7.0.0"
+    "sharp": "0.35.5",
+    "tesseract.js": "7.0.0",
+    "webextension-polyfill": "0.12.0"
   },
   "devDependencies": {
     "esbuild": "0.28.2",
     "playwright": "1.65.0",
-    "sharp": "0.35.5"
+    "web-ext": "10.8.0"
   }
 }
