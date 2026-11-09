@@ -1,4 +1,5 @@
 import { visible, captureElement, fingerprint, assertControl } from './challenge-dom.js';
+import { hcaptchaPointsSnapshot } from './hcaptcha-points.js';
 
 const all = (root, selector) => [...root.querySelectorAll(selector)].filter(visible);
 const unique = (items, description) => {
@@ -6,6 +7,10 @@ const unique = (items, description) => {
   return items[0];
 };
 export function widgetSnapshot(providers) {
+  if (providers.includes('hcaptcha')) {
+    const points = hcaptchaPointsSnapshot();
+    if (points) return points;
+  }
   if (providers.includes('captchafox')) {
     const root = unique(all(document, '.cf-slide'), 'CaptchaFox slider');
     if (root) {

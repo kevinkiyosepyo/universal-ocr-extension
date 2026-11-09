@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>Static point fixture</title>
+<style>body{margin:16px;font:16px Arial}.challenge-container{width:360px;transform-origin:top left}.challenge-view{position:relative;width:360px;height:320px}canvas{width:360px;height:320px}.button-submit{display:inline-block;padding:12px;background:#ddd;cursor:pointer}</style>
+<div class="challenge-container"><div class="challenge-view"><canvas width="720" height="640"></canvas></div></div><div role="button" class="button-submit">Skip</div>
+<div id="checkbox" aria-checked="false" hidden></div>
+<form><button type="submit">Submit application</button></form>
+<script>
+const mode=new URL(location.href).searchParams.get('mode');
+const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),verify=document.querySelector('.button-submit');
+window.counts={clicks:[],verify:0,submit:0};window.roundClicks=[];window.round=0;window.centers=[{x:.25,y:.55},{x:.5,y:.7},{x:.75,y:.6}];
+if(mode==='scaled')document.querySelector('.challenge-container').style.transform='scale(.8)';
+window.drawScene=(changed=false)=>{ctx.fillStyle=changed?'#dedede':'#f4f4f4';ctx.fillRect(0,0,720,640);ctx.fillStyle='#007c86';ctx.fillRect(0,0,720,160);ctx.fillStyle='white';ctx.font='bold 30px Arial';ctx.fillText('Click the THREE matching shapes',18,60);centers.forEach(p=>{ctx.fillStyle='#333';ctx.fillRect(p.x*720-25,p.y*640-20,50,40)});};drawScene();
+window.mark=p=>{ctx.strokeStyle='#ed452b';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x*720,p.y*640,42,0,Math.PI*2);ctx.stroke();};
+canvas.addEventListener('click',e=>{const r=canvas.getBoundingClientRect(),p={x:(e.clientX-r.x)/r.width,y:(e.clientY-r.y)/r.height};counts.clicks.push(p);roundClicks.push(p);mark(p);verify.textContent='Verify';if(mode==='refresh'&&counts.clicks.length===1)drawScene(true)});
+verify.onclick=()=>{counts.verify++;if(roundClicks.length!==3||!centers.every(p=>roundClicks.some(q=>Math.hypot(p.x-q.x,p.y-q.y)<.015)))return;if(mode==='gone'){document.querySelector('.challenge-container').remove();verify.remove();return}if(mode==='multi'&&round===0){window.round++;window.roundClicks=[];window.centers=[{x:.2,y:.7},{x:.6,y:.52},{x:.82,y:.8}];drawScene(true);verify.textContent='Skip';return}document.querySelector('#checkbox').setAttribute('aria-checked','true');};
+document.querySelector('form').onsubmit=e=>{e.preventDefault();counts.submit++};
+</script><script src="/point-adapter.js"></script>

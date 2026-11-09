@@ -1,7 +1,8 @@
 import { api } from './platform.js';
-import { snapshot, captureGrid, selected, clickTile, verifyChallenge, verifiedWidget, rejectedWidget } from './challenge-dom.js';
+import { snapshot, captureGrid, captureElement, fingerprint, selected, clickTile, verifyChallenge, verifiedWidget, rejectedWidget } from './challenge-dom.js';
 import { gridChanges } from './challenge-common.js';
 import { widgetSnapshot, captureWidget, applyText, applyPuzzle, puzzleDrag, widgetVerified, widgetFailure, managedSnapshot, startManaged, textFeedback } from './challenge-widgets.js';
+import { capturePointHeader, resolvePointInstruction, pointSelection, applyPointSelection, pointSceneMatches } from './hcaptcha-points.js';
 
 if (globalThis.__universalChallenge) {
   void globalThis.__universalChallenge();
@@ -9,6 +10,8 @@ if (globalThis.__universalChallenge) {
   const nonce = crypto.randomUUID();
   let session, busy = false, timer, stopped = true, generation = 0, hud, status;
   let lastFingerprint, lastActionAt = 0, lastVerified, lastStable, stableAt = 0, staleCount = 0, managed, textAttempt, widgetPendingAt = 0;
+  let successSeen = false, successObserver;
+  let pointAttempt;
   const cache = new Map();
   const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
   const send = async (type, payload = {}) => {
@@ -24,8 +27,8 @@ if (globalThis.__universalChallenge) {
       const style = document.createElement('style'); style.textContent = ':host{all:initial;position:fixed;bottom:16px;right:16px;z-index:2147483647}section{font:14px/1.4 system-ui;color:#163d31;background:#f3faf5;border:1px solid #98b8a9;border-radius:12px;padding:14px;box-shadow:0 3px 20px #0002;max-width:300px}p{margin:6px 0 12px}button{font:inherit;cursor:pointer;border:1px solid #7a9d8d;border-radius:6px;padding:6px 12px;background:white;color:#163d31}';
       const box = document.createElement('section'), title = document.createElement('strong'); title.textContent = 'Challenge assistance';
       status = document.createElement('p'); status.setAttribute('role', 'status');
-      const stop = document.createElement('button'); stop.textContent = 'Stop'; stop.addEventListener('click', () => { void send('CHALLENGE_STOP').catch(() => {}); stopped = true; generation++; status.textContent = 'Stopped.'; });
-      const close = document.createElement('button'); close.textContent = 'Dismiss'; close.style.marginLeft = '8px'; close.addEventListener('click', () => { void send('CHALLENGE_STOP').catch(() => {}); stopped = true; generation++; hud.remove(); hud = null; });
+      const stop = document.createElement('button'); stop.textContent = 'Stop'; stop.addEventListener('click', () => { void send('CHALLENGE_STOP').catch(() => {}); stopped = true; generation++; resetSuccessObserver(); status.textContent = 'Stopped.'; });
+      const close = document.createElement('button'); close.textContent = 'Dismiss'; close.style.marginLeft = '8px'; close.addEventListener('click', () => { void send('CHALLENGE_STOP').catch(() => {}); stopped = true; generation++; resetSuccessObserver(); hud.remove(); hud = null; });
       box.append(title, status, stop, close);
       const sheet = new CSSStyleSheet(); sheet.replaceSync(style.textContent); shadow.adoptedStyleSheets = [sheet];
       shadow.append(box); document.documentElement.append(hud);
@@ -33,6 +36,21 @@ if (globalThis.__universalChallenge) {
     status.textContent = (value.detail || value.state) + (value.preview ? '\n' + value.preview : '');
   }
   async function report(state, detail, preview) { const value = await send('CHALLENGE_REPORT', { state, detail, preview }); show(value); return value; }
+  function resetSuccessObserver() {
+    successObserver?.disconnect(); successObserver = undefined; successSeen = false;
+  }
+  function observeTencentSuccess() {
+    if (!session.providers.includes('tencent')) return;
+    const expected = generation, id = session.id;
+    // Provider dialogs can remove their success marker before the next poll.
+    // Latch only an observed marker from this active session; no DOM writes or
+    // reporting occur in this callback, so HUD changes cannot cause a loop.
+    successObserver = new MutationObserver(() => {
+      if (stopped || generation !== expected || session?.id !== id || !session.active || successSeen) return;
+      if (widgetVerified(['tencent'])) successSeen = true;
+    });
+    successObserver.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
+  }
   async function current(expected) {
     if (stopped || generation !== expected || document.hidden) return false;
     const value = await send('CHALLENGE_POLL');
@@ -44,8 +62,9 @@ if (globalThis.__universalChallenge) {
     busy = true; const expected = generation;
     try {
       if (!await current(expected)) return;
-      if (verifiedWidget(session.providers) || widgetVerified(session.providers)) { await report('widget-verified', 'The widget reports verification complete. This is not an application receipt.'); stopped = true; return; }
+      if (successSeen || verifiedWidget(session.providers) || widgetVerified(session.providers)) { await report('widget-verified', 'The widget reports verification complete. This is not an application receipt.'); stopped = true; resetSuccessObserver(); return; }
       const failed = widgetFailure(session.providers); if (failed) throw new Error(failed);
+      if (pointAttempt && Date.now() - pointAttempt.at > 12_000) throw new Error('The provider has not confirmed the point selection. Review the challenge manually.');
       if (widgetPendingAt && Date.now() - widgetPendingAt > 12_000) throw new Error('The provider has not confirmed verification. Review the challenge manually.');
       // A drag changes the captured pixels. Wait for its receipt instead of
       // analyzing the moved objects as if they were a brand-new challenge.
@@ -62,7 +81,7 @@ if (globalThis.__universalChallenge) {
       }
       if (managed?.started && !lastActionAt && Date.now() - managed.startedAt > 30_000) throw new Error('The provider has not confirmed verification. Complete any challenge it shows manually.');
       const widget = widgetSnapshot(session.providers);
-      if (widget) { await handleWidget(widget, expected); return; }
+      if (widget) { if (widget.mode === 'point-click') await handlePoints(widget, expected); else await handleWidget(widget, expected); return; }
       const challenge = snapshot();
       if (!challenge) return;
       if (!session.providers.includes(challenge.provider)) return;
@@ -108,8 +127,45 @@ if (globalThis.__universalChallenge) {
         // Keep observing: manual Verify may display the next challenge round.
       }
     } catch (error) {
-      if (!stopped && generation === expected) { await report('failed', error.message).catch(() => {}); stopped = true; show({ detail: error.message }); }
+      if (!stopped && generation === expected) { await report('failed', error.message).catch(() => {}); stopped = true; resetSuccessObserver(); show({ detail: error.message }); }
     } finally { busy = false; }
+  }
+  async function handlePoints(challenge, expected) {
+    if (pointAttempt) {
+      if (await pointSceneMatches(challenge, pointAttempt.image, pointAttempt.points)) {
+        return;
+      }
+      if (!/^Skip$/i.test(challenge.verify.innerText.trim())) return;
+      pointAttempt = null;
+    }
+    const image = await captureElement(challenge.image), hash = await fingerprint(image);
+    if (!await current(expected)) return;
+    if (hash !== lastStable) { lastStable = hash; stableAt = Date.now(); return; }
+    if (Date.now() - stableAt < 650 || hash === lastFingerprint) return;
+    await report('recognizing', 'Reading the hCaptcha instruction and matching shapes…');
+    const unchanged = async () => {
+      if (!await current(expected)) return false;
+      const latest = widgetSnapshot(session.providers);
+      const same = latest?.mode === 'point-click' && latest.image === challenge.image && latest.verify === challenge.verify && (!latest.instruction || !challenge.instruction || latest.instruction === challenge.instruction) && await pointSceneMatches(latest, image);
+      if (!same && ++staleCount >= 4) throw new Error('The challenge keeps changing. Wait for it to settle and start again.');
+      return same;
+    };
+    if (challenge.needsInstruction) {
+      const reading = await send('CHALLENGE_SOLVE', { provider: 'hcaptcha', task: { type: 'ocr', image: capturePointHeader(challenge) } });
+      if (!await unchanged()) return;
+      challenge = resolvePointInstruction(challenge, reading.text);
+    }
+    const solution = await send('CHALLENGE_SOLVE', { provider: 'hcaptcha', task: { type: 'points', image, prompt: challenge.prompt } });
+    if (!await unchanged()) return;
+    const points = pointSelection(challenge, solution);
+    staleCount = 0; lastFingerprint = hash; lastActionAt = Date.now();
+    if (!session.autoVerify) {
+      await report('review', 'Review the shape centers as percentages of the challenge image. No points were clicked.', points.map(p => `(${Math.round(p.x * 100)}%, ${Math.round(p.y * 100)}%)`).join(' '));
+      return;
+    }
+    await applyPointSelection(challenge, solution, () => current(expected), image);
+    pointAttempt = { image, points, at: Date.now() };
+    await report('verifying', 'Points selected. Waiting for the provider or the next challenge round…');
   }
   async function handleWidget(challenge, expected) {
     const capture = value => captureWidget(value, url => send('CHALLENGE_FETCH', { url }), cache, rect => send('CHALLENGE_CAPTURE', { provider: value.provider, rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }, viewport: { width: innerWidth, height: innerHeight } }));
@@ -161,11 +217,15 @@ if (globalThis.__universalChallenge) {
     } else await report('review', 'Code entered. Review it before continuing; verification is not confirmed.');
   }
   async function start() {
-    clearInterval(timer); generation++; stopped = false; lastFingerprint = lastVerified = lastStable = managed = textAttempt = null; lastActionAt = stableAt = staleCount = widgetPendingAt = 0; cache.clear();
-    try { session = await send('CHALLENGE_HELLO'); show(session); timer = setInterval(tick, 400); void tick(); }
-    catch { stopped = true; }
+    resetSuccessObserver(); clearInterval(timer); generation++; stopped = false; pointAttempt = null; lastFingerprint = lastVerified = lastStable = managed = textAttempt = null; lastActionAt = stableAt = staleCount = widgetPendingAt = 0; cache.clear();
+    const expected = generation;
+    try {
+      const next = await send('CHALLENGE_HELLO');
+      if (expected !== generation || stopped) return;
+      session = next; observeTencentSuccess(); show(session); timer = setInterval(tick, 400); void tick();
+    } catch { if (expected === generation) { stopped = true; resetSuccessObserver(); } }
   }
-  api.runtime.onMessage.addListener(message => { if (message.type === 'CHALLENGE_STATUS') { if (session?.id === message.session.id) { show(message.session); if (!message.session.active) { stopped = true; generation++; clearInterval(timer); } } } });
-  window.addEventListener('pagehide', () => { stopped = true; generation++; clearInterval(timer); });
+  api.runtime.onMessage.addListener(message => { if (message.type === 'CHALLENGE_STATUS') { if (session?.id === message.session.id) { show(message.session); if (!message.session.active) { stopped = true; generation++; clearInterval(timer); resetSuccessObserver(); } } } });
+  window.addEventListener('pagehide', () => { stopped = true; generation++; clearInterval(timer); resetSuccessObserver(); });
   globalThis.__universalChallenge = start; void start();
 }

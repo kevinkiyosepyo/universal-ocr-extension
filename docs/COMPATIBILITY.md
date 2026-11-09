@@ -21,7 +21,7 @@ This is an independent implementation, not a copy of CaptchaSonic's private solv
 | --- | --- | --- |
 | Universal OCR | Local general-purpose text recognition | Reliable reading of every distorted CAPTCHA / handwriting |
 | BLS / text CAPTCHA | Dedicated local code reader, unambiguous field pairing, optional insertion | Distortion errors remain; no verified BLS integration |
-| PopularCaptcha image / grid / bbox / multi | Generic image, grid, point, and box tools | Provider identity / public widget contract, adapter, live acceptance |
+| PopularCaptcha image / grid / bbox / multi | CaptchaSonic's hCaptcha-style API family; existing hCaptcha grids, experimental static matching-shapes clicks, and generic image tools | Live acceptance and other click / drag / video / provider-token workflows |
 | reCAPTCHA v2 visible | Grid adapter, sprite capture, dynamic replacements, multi-round verification; one successful 2.1 public-demo session | Reliable acceptance across sites; audio / non-grid modes |
 | reCAPTCHA v2 invisible | Detection distinguished from v3; existing adapter can see a visible image grid | Trigger and callback flows remain unverified; no form Submit trigger |
 | reCAPTCHA v3 | Score-script / action-button detection | Site-specific provider score and token workflow; no local token generation |
@@ -30,11 +30,11 @@ This is an independent implementation, not a copy of CaptchaSonic's private solv
 | Geetest v4 | CSS image capture, alpha-aware texture/outline matcher, guarded slider drag | Official demo rejected verification, including browser-input test; non-slider modes |
 | MTCaptcha | Image capture, dedicated OCR, field insertion, one bounded missing-character retry | Fresh public-demo acceptance was not confirmed; model errors remain |
 | CaptchaFox | Native checkbox, cropped canvas capture, object slider, fast foreground path and vision fallback | Official object-slider demo passed; other modes and sites unverified |
-| Tencent | Current sprite-slider DOM adapter, local matching/drag tests; official demo inspected | Live acceptance and non-slider modes |
+| Tencent | Current sprite-slider DOM adapter, including scaled-layout tests; official demo completed native checkbox verification without a puzzle | Live slider acceptance and non-slider adapters |
 | TikTok | Detection and generic image tools | Integration deferred; not tested in this release |
 | Prosopo / Procaptcha | Native proof-of-work flow; official demo passed with a provider response | Image, icon-order, puzzle, and invisible modes unverified |
 | Binance | Widget detection and generic image tools | Provider-specific adapter and a test page |
-| hCaptcha | Image-grid adapter and fixture-tested selections / verification | Live acceptance; drawing, motion, spatial and other non-grid modes |
+| hCaptcha | Image-grid and static matching-shapes adapters, with fixture-tested selections / verification | Live acceptance; drawing, motion, spatial and other non-grid modes |
 | Cloudflare Turnstile | Widget/script detection | Provider-managed verification tokens |
 
 
@@ -62,5 +62,11 @@ The user deferred iCIMS work. Development focused on their common CAPTCHA exampl
 ## Version 2.2 evidence
 
 See [the 2.2 verification report](verification-2.2.md) for successful and unsuccessful runs. A passed fixture tests adapter behavior, not a provider's production acceptance. No claim of universal CAPTCHA coverage is made.
+
+### Provider research correction
+
+CaptchaSonic's own [hCaptcha recognition documentation](https://captchasonic.com/en/docs/recognition/hcaptcha) uses `PopularCaptchaImage`, and its [PopularCaptcha token documentation](https://captchasonic.com/en/docs/token/popular-captcha) identifies the family as hCaptcha-style challenges. The earlier claim that its identity was unknown was incorrect. This maps the grid subset to the existing hCaptcha adapter; it does not establish support for every advertised mode.
+
+AWS's [integration instructions](https://docs.aws.amazon.com/waf/latest/developerguide/waf-js-captcha-api.html) require a configured integration URL and a key authorized for the client domain. Its [official example](https://github.com/aws-samples/aws-waf-captcha-react-demo) requires deployment rather than providing a shared hosted demo. No suitable official Binance CAPTCHA demo or SDK contract was found in the follow-up search. These remain integration blockers, not successful tests.
 
 Additional primary references: [MTCaptcha](https://docs.mtcaptcha.com/), [Geetest](https://docs.geetest.com/captcha/guide), [Procaptcha rendering](https://docs.prosopo.io/en/basics/client-side-rendering/), [CaptchaFox widget API](https://docs.captchafox.com/en/widget-api), [invisible reCAPTCHA v2](https://developers.google.com/recaptcha/docs/invisible), and [GLM-OCR](https://ollama.com/library/glm-ocr).

@@ -39,7 +39,8 @@ export function snapshot() {
     if (!prompt) throw new Error('The challenge instruction is unavailable.');
     return { provider: 'hcaptcha', ...gridShape(tiles), prompt, dynamic: false, layout: 'tiles', verify: first('.button-submit'), root: hcaptcha };
   }
-  if (first('.challenge-container canvas, .challenge-view canvas')) throw new Error('This hCaptcha drawing or motion challenge requires manual completion.');
+  // Canvas modes are identified by the point adapter's instruction check.
+  // A canvas can mount before its footer; wait for a complete widget.
   return null;
 }
 export function verifiedWidget(providers) {
@@ -87,13 +88,34 @@ export async function fingerprint(value) {
   return [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-// Capture exactly the rendered image box, including CSS sprites. Keep alpha
-// for puzzle masks and use device-independent CSS pixels for both images.
+// Preserve layout pixels so a shrinking CSS transform does not discard texture.
+// Normalized matching coordinates map back to rendered bounds during input.
+function imageLayout(element, style) {
+  for (let node = element; node instanceof Element; node = node.parentElement || node.getRootNode().host) {
+    const transform = getComputedStyle(node);
+    if (transform.transform !== 'none') {
+      const matrix = new DOMMatrixReadOnly(transform.transform);
+      if (!matrix.is2D || Math.abs(matrix.b) > 1e-7 || Math.abs(matrix.c) > 1e-7 || matrix.a <= 0 || matrix.d <= 0) throw new Error('Rotated, skewed, or reflected challenge images are unsupported.');
+    }
+    if (transform.perspective !== 'none' || (transform.rotate && transform.rotate !== 'none' && transform.rotate !== '0deg')) throw new Error('Rotated or perspective challenge images are unsupported.');
+    if (transform.scale && transform.scale !== 'none' && transform.scale.split(/\s+/).some(value => !Number.isFinite(Number(value)) || Number(value) <= 0)) throw new Error('Reflected challenge images are unsupported.');
+  }
+  const dimension = (axis, edges) => {
+    const value = parseFloat(style[axis]);
+    return value + (style.boxSizing === 'border-box' ? 0 : edges.reduce((sum, edge) => sum + parseFloat(style['padding' + edge]) + parseFloat(style['border' + edge + 'Width']), 0));
+  };
+  const width = dimension('width', ['Left', 'Right']), height = dimension('height', ['Top', 'Bottom']);
+  if (![width, height].every(value => Number.isFinite(value) && value > 0)) throw new Error('The challenge image layout could not be measured.');
+  return { width, height };
+}
+
+// Capture the image layout box, including CSS sprites. Keep alpha
+// for puzzle masks and use untransformed CSS pixels for both images.
 export async function captureElement(element, fetchImage, cache = new Map()) {
   if (!visible(element)) throw new Error('The challenge image is not visible.');
-  const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
+  const style = getComputedStyle(element), layout = imageLayout(element, style);
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(rect.width); canvas.height = Math.round(rect.height);
+  canvas.width = Math.round(layout.width); canvas.height = Math.round(layout.height);
   if (canvas.width > 1200 || canvas.height > 1200) throw new Error('The challenge image exceeds 1200 pixels per side.');
   const context = canvas.getContext('2d');
   if (element instanceof HTMLCanvasElement) context.drawImage(element, 0, 0, canvas.width, canvas.height);
@@ -117,7 +139,8 @@ export async function captureElement(element, fetchImage, cache = new Map()) {
         context.drawImage(image, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
       }
     } else {
-      const box = backgroundGeometry({ imageWidth: rect.width, imageHeight: rect.height, left: 0, top: 0, backgroundSize: style.backgroundSize, backgroundPosition: style.backgroundPosition }, image);
+      const box = backgroundGeometry({ imageWidth: layout.width, imageHeight: layout.height, left: 0, top: 0, backgroundSize: style.backgroundSize, backgroundPosition: style.backgroundPosition }, image);
+      context.scale(canvas.width / layout.width, canvas.height / layout.height);
       context.drawImage(image, box.x, box.y, box.width, box.height);
     }
   }

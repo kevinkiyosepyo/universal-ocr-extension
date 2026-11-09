@@ -4,17 +4,19 @@ An independent, open-source browser extension and local recognition service. Rea
 
 ![Universal OCR workbench](docs/workbench.png)
 
-Version 2.2 adds dedicated text-code recognition, MTCaptcha field handling, Geetest and Tencent slider adapters, and native Procaptcha / CaptchaFox workflows. Procaptcha proof of work and CaptchaFox's object slider passed official public demos with the **Browser Input** build. Geetest and MTCaptcha live tests did not confirm acceptance. This is not full CaptchaSonic parity: see the [capability matrix](docs/COMPATIBILITY.md) and [measured results](docs/verification-2.2.md).
+Version 2.3 adds bounded hCaptcha matching-shapes clicks, scaled-sprite capture, and brief success-marker handling. See the [2.3 verification report](docs/verification-2.3.md).
+
+Version 2.2 added dedicated text-code recognition, MTCaptcha field handling, Geetest and Tencent slider adapters, and native Procaptcha / CaptchaFox workflows. Procaptcha proof of work and CaptchaFox's object slider passed official public demos with the **Browser Input** build. Geetest and MTCaptcha live tests did not confirm acceptance. This is not full CaptchaSonic parity: see the [capability matrix](docs/COMPATIBILITY.md) and [measured results](docs/verification-2.2.md).
 
 The referenced [CaptchaSonic repository](https://github.com/Captcha-Sonic/CaptchaSonic-Extension) contains documentation and release assets, but no extension source at the inspected commit. This project includes none of its code, binaries, artwork, or branding.
 
 ## CAPTCHA support status
 
-**This project does not support all CAPTCHA types advertised by CaptchaSonic.** This table describes version **2.2.0**. Detection, generic image tools, and local fixtures do not establish live provider acceptance.
+**This project does not support all CAPTCHA types advertised by CaptchaSonic.** This table describes version **2.3.0**. Detection, generic image tools, and local fixtures do not establish live provider acceptance.
 
 | CAPTCHA type / feature | Status | What works and what is missing |
 | --- | --- | --- |
-| PopularCaptcha (Image / Grid / BBox / Multi) | **Not integrated** | Generic image tools exist; provider identity, widget contract, adapter, and live acceptance are missing. |
+| PopularCaptcha (Image / Grid / BBox / Multi) | **Partial — hCaptcha grid subset** | CaptchaSonic uses this name for hCaptcha-style challenges. The hCaptcha grid and experimental matching-shapes adapters apply; live acceptance and other click/drag/video/token workflows remain unverified. |
 | reCAPTCHA v2 (Visible & Invisible) | **Partial — visible grids** | Capture, replacement tiles, multiple rounds, and optional Verify; one 2.1 public-demo success. Invisible flows, audio, and other modes remain unverified. |
 | reCAPTCHA v3 | **Not integrated** | Detection only; no provider-issued score or token workflow. |
 | AWS WAF CAPTCHA | **Not integrated** | Detection and generic tools; needs a provider adapter and test deployment. |
@@ -23,19 +25,19 @@ The referenced [CaptchaSonic repository](https://github.com/Captcha-Sonic/Captch
 | BLS OCR / Text CAPTCHA | **Partial — text recognition** | Dedicated local code model and field pairing; distorted codes can still be wrong. BLS acceptance unverified. |
 | MTCaptcha | **Partial — live unverified** | Image capture, field fill, and one missing-character retry; fresh demo acceptance was not confirmed. |
 | CaptchaFox | **Object-slider demo verified** | Native checkbox and object slider passed with Browser Input; other modes/sites unverified. |
-| Tencent CAPTCHA | **Partial — slider fixtures** | Sprite capture and slider adapter pass local tests; live completion unverified. |
+| Tencent CAPTCHA | **Partial — slider fixtures** | Sprite capture and slider adapter pass local tests, including scaled layouts. The official demo verified its checkbox without showing a puzzle; live slider acceptance remains unverified. |
 | TikTok CAPTCHA | **Deferred** | Detection and generic tools; provider slide, circle, and click workflows remain unintegrated. |
 | Prosopo / Procaptcha | **Proof-of-work demo verified** | Native flow passed with Browser Input and a provider response; other modes unverified. |
 | Binance CAPTCHA | **Not integrated** | Detection and generic tools; needs a provider adapter and test page. |
 | Universal OCR | **Working — general text** | Offline OCR in seven languages, uploads, region capture, and editable results; not universal accuracy on distorted text or handwriting. |
 
-**Additional adapter:** hCaptcha image grids have local fixture coverage, without live acceptance. Drawing, motion, spatial, and other modes are unsupported.
+**Additional adapter:** hCaptcha image grids and static matching-shapes clicks have browser fixture coverage. Point mode checks the exact instruction and count, preserves existing selections, and stops on changing or obscured canvases. Live acceptance remains unverified; other click, drawing, drag, and video modes are unsupported.
 
 **Measured limits:** the earlier reCAPTCHA success required 11 rounds and about 150 seconds. The latest accepted Procaptcha and CaptchaFox runs took 2.5 and 8.9 seconds. Four text-code regressions passed, including JMKR; warm cases took about 0.5 seconds. These are small samples, not general accuracy or speed guarantees. See the [provider matrix](docs/COMPATIBILITY.md), [2.1 evidence](docs/verification-2.1.md), and [2.2 evidence](docs/verification-2.2.md).
 
 ## Install the extension
 
-1. Download and extract the v2.2.0 ZIP for your browser from [Releases](https://github.com/kevinkiyosepyo/universal-ocr-extension/releases/tag/v2.2.0).
+1. Download and extract the v2.3.0 ZIP for your browser from [Releases](https://github.com/kevinkiyosepyo/universal-ocr-extension/releases/tag/v2.3.0).
 2. **Chrome / Brave / Chromium:** open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
 3. **Edge:** use `edge://extensions` and the Edge package with the same steps.
 4. **Firefox 140+:** open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select the extracted `manifest.json`. This unsigned build must be reloaded after restarting Firefox; permanent installation requires Mozilla signing.
@@ -122,6 +124,7 @@ npx playwright install chromium firefox
 npm run test:browser
 npm run test:automation
 npm run test:challenges
+npm run test:points
 npm run test:widgets
 npm run test:browser-input
 npm run test:firefox

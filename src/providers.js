@@ -2,7 +2,7 @@ export const PROVIDERS = [
   { id: 'turnstile', name: 'Cloudflare Turnstile', selectors: ['.cf-turnstile', 'iframe[src*="challenges.cloudflare.com"]', 'script[src*="challenges.cloudflare.com/turnstile"]'], hosts: ['challenges.cloudflare.com'], mode: 'provider-token' },
   { id: 'recaptcha-v2', name: 'reCAPTCHA v2', selectors: ['.g-recaptcha:not([data-action])', 'iframe[src*="recaptcha"][src*="anchor"]', '.rc-imageselect'], hosts: ['google.com', 'recaptcha.net'], mode: 'widget' },
   { id: 'recaptcha-v3', name: 'reCAPTCHA v3', selectors: ['.g-recaptcha[data-action]', 'script[src*="/recaptcha/api.js"]', 'script[src*="/recaptcha/enterprise.js"]'], hosts: ['google.com', 'recaptcha.net'], mode: 'provider-token' },
-  { id: 'hcaptcha', name: 'hCaptcha / image grids', selectors: ['.h-captcha', 'iframe[src*="hcaptcha.com"]'], hosts: ['hcaptcha.com'], mode: 'widget' },
+  { id: 'hcaptcha', name: 'hCaptcha / grids and matching shapes', selectors: ['.h-captcha', 'iframe[src*="hcaptcha.com"]'], hosts: ['hcaptcha.com'], mode: 'widget' },
   { id: 'aws-waf', name: 'AWS WAF CAPTCHA', selectors: ['#aws-waf-captcha-container', 'script[src*="captcha-sdk.awswaf.com"]', 'iframe[src*="awswaf.com"]'], hosts: ['awswaf.com'], mode: 'widget' },
   { id: 'geetest-v3', name: 'Geetest v3', selectors: ['.geetest_panel', '.geetest_holder', '.geetest_slider'], hosts: ['geetest.com'], mode: 'widget' },
   { id: 'geetest-v4', name: 'Geetest v4', selectors: ['.geetest_box', '.geetest_captcha', '[class*="geetest_ques"]'], hosts: ['geetest.com', 'geevisit.com'], mode: 'widget' },

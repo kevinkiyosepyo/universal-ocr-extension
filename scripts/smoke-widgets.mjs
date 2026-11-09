@@ -23,9 +23,12 @@ const html = await readFile('tests/fixtures/widgets.html', 'utf8');
 const puzzleHTML = await readFile('tests/fixtures/puzzle.html', 'utf8');
 const managedHTML = await readFile('tests/fixtures/managed.html', 'utf8');
 const foxHTML = await readFile('tests/fixtures/fox-slide.html', 'utf8');
+const pointHTML = await readFile('tests/fixtures/points.html', 'utf8');
 const fixture = createServer((req, res) => { res.setHeader('Content-Type', 'text/html'); res.end(`<title>Application fixture</title><iframe width="500" height="400" src="https://service.mtcaptcha.com/mtcv1/client/fixture${new URL(req.url, 'http://fixture').search}"></iframe>`); });
 fixture.listen(0, '127.0.0.1'); await once(fixture, 'listening'); const origin = `http://127.0.0.1:${fixture.address().port}`;
-let delay = 0, calls = 0, short = false, lastImage, uncertainPoints = false;
+let delay = 0, calls = 0, short = false, lastImage, uncertainPoints = false, shapeCalls = 0, shapeSolutions = [];
+const firstShapes = [{ x: 250, y: 550 }, { x: 500, y: 700 }, { x: 750, y: 600 }];
+const nextShapes = [{ x: 200, y: 700 }, { x: 600, y: 520 }, { x: 820, y: 800 }];
 const vision = createServer(async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   if (req.url === '/api/tags') return res.end(JSON.stringify({ models: [{ name: 'fixture-model' }] }));
@@ -33,15 +36,20 @@ const vision = createServer(async (req, res) => {
   const request = JSON.parse(body), content = request.messages.at(-1).content;
   lastImage = await sharp(Buffer.from(request.messages.at(-1).images[0], 'base64')).metadata();
   const text = short && !content.includes('at least') ? 'K7P' : 'K7P4XR';
+  const points = content.includes('matching shapes') ? shapeSolutions[Math.min(shapeCalls++, shapeSolutions.length - 1)] : [{ x: 100, y: 390 }, { x: 600, y: 390 }];
   if (delay) await new Promise(resolve => setTimeout(resolve, delay));
-  res.end(JSON.stringify({ message: { content: JSON.stringify(content.includes('Return center points') ? { points: [{ x: 100, y: 390 }, { x: 600, y: 390 }], confidence: uncertainPoints ? 40 : 99 } : { text, confidence: 99 }) } }));
+  res.end(JSON.stringify({ message: { content: JSON.stringify(content.includes('Return center points') ? { points, confidence: uncertainPoints ? 40 : 99 } : { text, confidence: 99 }) } }));
 });
 vision.listen(0, '127.0.0.1'); await once(vision, 'listening');
 const key = randomBytes(32).toString('hex');
-const { server } = createSolverServer({ key, model: 'fixture-model', ollamaEndpoint: `http://127.0.0.1:${vision.address().port}`, cache: false });
+const { server, queue } = createSolverServer({ key, model: 'fixture-model', ollamaEndpoint: `http://127.0.0.1:${vision.address().port}`, cache: false });
+const tasks = [], createTask = queue.create.bind(queue);
+queue.create = task => { tasks.push({ type: task.type, prompt: task.prompt }); return createTask(task); };
 server.listen(0, '127.0.0.1'); await once(server, 'listening');
 const context = await chromium.launchPersistentContext(join(temp, 'profile'), { channel: 'chromium', headless: true, args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`] });
 await context.route('https://service.mtcaptcha.com/mtcv1/client/fixture*', route => route.fulfill({ contentType: 'text/html', body: html }));
+await context.route('https://newassets.hcaptcha.com/fixture*', route => route.fulfill({ contentType: 'text/html', body: pointHTML }));
+await context.route('https://newassets.hcaptcha.com/point-adapter.js', route => route.fulfill({ contentType: 'text/javascript', body: '' }));
 const report = [], errors = [];
 context.on('page', page => page.on('pageerror', error => errors.push(error.message)));
 try {
@@ -105,13 +113,28 @@ try {
     await target.bringToFront(); tabId = await worker.evaluate(async url => (await chrome.tabs.query({})).find(t => t.url === url).id, target.url());
   };
   delay = 0;
-  for (const version of ['v3', 'v4', 'tencent']) {
-    await openPuzzle(version); await start(true, [version === 'tencent' ? version : 'geetest-' + version]); await waitState(['widget-verified']);
+  for (const version of ['v3', 'v4', 'tencent', 'tencent-scaled', 'tencent-fleeting']) {
+    await openPuzzle(version); await start(true, [version.startsWith('tencent') ? 'tencent' : 'geetest-' + version]);
+    try { await waitState(['widget-verified']); } catch (error) { throw new Error(`${version}: ${error.message}; ${JSON.stringify(await frame.evaluate(() => ({ counts, lastMove: moves.at(-1) })))}`); }
     assert.deepEqual(await frame.evaluate(() => counts), { drags: 1, submit: 0 });
     assert.equal(await frame.evaluate(() => trustedPointer), browserInput);
-    assert.ok(Math.abs((await frame.evaluate(() => moves.at(-1))) - (version === 'tencent' ? 149 : 173)) < 2);
-    report.push(`${version === 'tencent' ? 'Tencent sprite' : 'Geetest ' + version} image capture, actual local matching, scaled drag, and completion marker`);
+    assert.ok(Math.abs((await frame.evaluate(() => moves.at(-1))) - (version === 'tencent-scaled' ? 74.5 : version.startsWith('tencent') ? 149 : 173)) < 2);
+    if (version === 'tencent-fleeting') {
+      assert.equal(await frame.evaluate(() => successFlashes), 1);
+      assert.equal(await frame.locator('.tencent-captcha-dy__verify-status-img--success').count(), 0);
+    }
+    report.push(`${version === 'tencent-fleeting' ? 'Tencent sprite with a success marker removed before the next poll' : version === 'tencent-scaled' ? 'Tencent sprite under a half-scale transform' : version === 'tencent' ? 'Tencent sprite' : 'Geetest ' + version} image capture, actual local matching, scaled drag, and completion marker`);
   }
+  await openPuzzle('tencent'); await start(false, ['tencent']); await waitState(['review']);
+  await frame.evaluate(() => flashSuccess()); await send('CHALLENGE_STOP', { tabId });
+  await start(false, ['tencent']);
+  assert.equal((await waitState(['review', 'widget-verified'])).state, 'review');
+  assert.equal(await frame.evaluate(() => counts.drags), 0);
+  report.push('Stopping and restarting clears a previously observed Tencent success marker');
+  await openPuzzle('tencent-rotated'); await start(true, ['tencent']);
+  assert.match((await waitState(['failed'])).detail, /Rotated/);
+  assert.equal(await frame.evaluate(() => counts.drags), 0);
+  report.push('Rotated Tencent sprite capture stops before any slider input');
   await openPuzzle('v4'); await start(false, ['geetest-v4']); await waitState(['review']);
   assert.equal(await frame.evaluate(() => counts.drags), 0);
   report.push('Puzzle review reports the displacement without releasing a drag');
@@ -139,6 +162,44 @@ try {
   assert.equal(lastImage.width, 300); assert.equal(lastImage.height, 60);
   assert.equal(await frame.evaluate(() => counts.drags), 0); uncertainPoints = false;
   report.push('Uncertain object positions stop before a slider action');
+  await context.route(origin + '/points*', route => route.fulfill({ contentType: 'text/html', body: `<title>Point application fixture</title><iframe width="650" height="650" src="https://newassets.hcaptcha.com/fixture${new URL(route.request().url()).search}"></iframe>` }));
+  const openPoints = async (mode = '') => {
+    shapeCalls = 0; shapeSolutions = mode === 'multi' ? [firstShapes, nextShapes] : [firstShapes];
+    await target.goto(origin + '/points?mode=' + mode);
+    frame = target.frames().find(item => item.url().startsWith('https://newassets.hcaptcha.com/fixture')); await frame.waitForFunction(() => window.counts);
+    await target.bringToFront(); tabId = await worker.evaluate(async url => (await chrome.tabs.query({})).find(tab => tab.url === url).id, target.url());
+  };
+  await openPoints(); let taskStart = tasks.length; await start(true, ['hcaptcha']); await waitState(['widget-verified']);
+  let pointCounts = await frame.evaluate(() => counts);
+  assert.equal(pointCounts.clicks.length, 3); assert.equal(pointCounts.verify, 1); assert.equal(pointCounts.submit, 0);
+  assert.equal(await frame.locator('#checkbox').getAttribute('aria-checked'), 'true');
+  assert.deepEqual(tasks.slice(taskStart).map(task => task.type), ['ocr', 'points']);
+  assert.match(tasks.at(-1).prompt, /Click the THREE matching shapes/i);
+  report.push('Cross-origin hCaptcha canvas instructions use real OCR before point selection and provider verification');
+  await openPoints(); await start(false, ['hcaptcha']); await waitState(['review']);
+  assert.deepEqual(await frame.evaluate(() => counts), { clicks: [], verify: 0, submit: 0 });
+  report.push('hCaptcha point review returns recognized centers without clicking or verifying');
+  await openPoints('multi'); taskStart = tasks.length; await start(true, ['hcaptcha']); await waitState(['widget-verified']);
+  pointCounts = await frame.evaluate(() => counts);
+  assert.equal(pointCounts.clicks.length, 6); assert.equal(pointCounts.verify, 2); assert.equal(pointCounts.submit, 0);
+  assert.deepEqual(tasks.slice(taskStart).map(task => task.type), ['ocr', 'points', 'ocr', 'points']);
+  assert.equal(shapeCalls, 2); assert.equal(await frame.evaluate(() => round), 1);
+  report.push('A new hCaptcha canvas round is recognized again before selecting its different shape centers');
+  await openPoints(); delay = 1300; await start(true, ['hcaptcha']);
+  for (let i = 0; i < 150 && shapeCalls === 0; i++) await new Promise(resolve => setTimeout(resolve, 100));
+  assert.equal(shapeCalls, 1); await send('CHALLENGE_STOP', { tabId });
+  await new Promise(resolve => setTimeout(resolve, 1600)); delay = 0;
+  assert.deepEqual(await frame.evaluate(() => counts), { clicks: [], verify: 0, submit: 0 });
+  assert.equal((await send('CHALLENGE_GET', { tabId })).state, 'stopped');
+  report.push('Stopping hCaptcha point inference prevents late clicks and verification');
+  await openPoints('gone'); await start(true, ['hcaptcha']); await waitState(['verifying']);
+  const receiptWait = Date.now();
+  assert.equal(await frame.locator('canvas, .button-submit').count(), 0);
+  assert.match((await waitState(['failed'])).detail, /has not confirmed the point selection/);
+  assert.ok(Date.now() - receiptWait < 15_000, 'Missing point verification must fail within 15 seconds.');
+  pointCounts = await frame.evaluate(() => counts);
+  assert.equal(pointCounts.clicks.length, 3); assert.equal(pointCounts.verify, 1); assert.equal(pointCounts.submit, 0); assert.equal(shapeCalls, 1);
+  report.push('A removed hCaptcha widget without a success receipt fails within the verification timeout');
   await context.route(origin + '/managed*', route => route.fulfill({ contentType: 'text/html', body: managedHTML }));
   await worker.evaluate(() => chrome.storage.local.remove('service'));
   for (const provider of ['prosopo', 'captchafox']) {
@@ -152,7 +213,7 @@ try {
     report.push(`${provider} starts its native widget without a local model and waits for a provider response, not just a checked box`);
   }
   assert.deepEqual(errors, []);
-  await writeFile(join(output, browserInput ? 'browser-input-report.json' : 'report.json'), JSON.stringify({ checks: report, browserInput, model: 'deterministic test double', modelCalls: calls }, null, 2) + '\n');
+  await writeFile(join(output, browserInput ? 'browser-input-report.json' : 'report.json'), JSON.stringify({ checks: report, browserInput, model: 'deterministic test double', pointInstructionOcr: 'real Tesseract', modelCalls: calls }, null, 2) + '\n');
   report.forEach(item => console.log('PASS ' + item));
 } finally {
   await context.close();

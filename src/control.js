@@ -85,7 +85,7 @@ async function refresh() {
 $('clear-activity').addEventListener('click', protect(async () => { await send({ type: 'CLEAR_ACTIVITY' }); await refresh(); }));
 const capabilities = {
   'recaptcha-v2': 'Visible image grids, dynamic replacements, and multiple rounds; invisible flows unverified',
-  hcaptcha: 'Image-grid adapter; other challenge modes unverified',
+  hcaptcha: 'Image grids and experimental static matching-shapes clicks; live acceptance unverified',
   mtcaptcha: 'Text reading, field fill, one missing-character retry; live acceptance not confirmed',
   'bls-text': 'Unambiguous text-image field pairing; BLS sites unverified',
   'geetest-v3': 'Reconstructed canvas slider adapter; local tests only',
@@ -96,7 +96,7 @@ const capabilities = {
   tiktok: 'Detection and generic tools; integration deferred',
 };
 for (const provider of PROVIDERS) { const row = node('tr', ''); for (const value of [provider.name, 'Selectors available', capabilities[provider.id] || (provider.mode === 'provider-token' ? 'Provider-issued token; not implemented locally' : 'Detection only; provider integration not implemented')]) row.append(node('td', value)); $('provider-rows').append(row); }
-const popular = node('tr', ''); for (const value of ['PopularCaptcha', 'No stable public widget contract', 'Generic grid, points, and boxes; provider adapter not implemented']) popular.append(node('td', value)); $('provider-rows').prepend(popular);
+const popular = node('tr', ''); for (const value of ['PopularCaptcha / hCaptcha-style', 'Uses the hCaptcha adapter', 'Grids and experimental matching-shapes clicks; other click, drag, video, and token workflows unverified']) popular.append(node('td', value)); $('provider-rows').prepend(popular);
 $('service-form').addEventListener('submit', protect(async () => { const endpoint = endpointURL($('service-endpoint').value); if (!await api.permissions.request({ origins: [pattern(endpoint)] })) throw new Error('Service access was not granted.'); await send({ type: 'SAVE_SERVICE', endpoint: endpoint.href, key: $('service-key').value }); notice('Connection saved.'); }));
 $('service-test').addEventListener('click', protect(async () => { $('service-result').textContent = 'Connecting…'; try { const health = await send({ type: 'SERVICE_HEALTH' }); $('service-result').textContent = `Connected · v${health.version} · Vision ${health.vision.available ? 'ready' : 'model not available'} · Text ${health.text?.available ? 'ready' : 'model not available'} · ${health.running} running, ${health.queued} queued`; } catch (error) { $('service-result').textContent = error.message; throw error; } }));
 $('proxy-form').addEventListener('submit', protect(async () => { if (!await api.permissions.request({ permissions: ['proxy'] })) throw new Error('Proxy permission was not granted.'); const result = await send({ type: 'PROXY_SAVE', list: $('proxy-list').value }); $('proxy-result').textContent = `Saved ${result.count} proxies. Browser settings are unchanged until you choose Use first.`; }));
