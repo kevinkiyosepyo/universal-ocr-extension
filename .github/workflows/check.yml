@@ -23,6 +23,7 @@ jobs:
       - run: npm run test:automation
       - run: npm run test:challenges
       - run: npm run test:points
+      - run: npm run test:tiktok
       - run: npm run test:widgets
       - run: npm run test:browser-input
       - run: npm run build:firefox

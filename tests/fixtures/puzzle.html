@@ -22,6 +22,16 @@ if(mode.startsWith('v3')){
  // Version 3 may render the piece in a background-sized transparent canvas.
  const padded=document.createElement('canvas');padded.width=320;padded.height=160;padded.getContext('2d').drawImage(piece,0,43);padded.className='geetest_canvas_slice';padded.style.cssText='width:320px;height:160px;top:0';ref.replaceWith(padded);ref=padded;
  handle.className='geetest_slider_button';
+ if(mode.startsWith('v3-siblings')){
+  // Observed official v3 popup: the canvas is outside the slider container.
+  const holder=document.querySelector('.geetest_panel'),slider=document.querySelector('.geetest_slider');
+  holder.className='geetest_holder geetest_mobile geetest_ant geetest_popup';
+  const wrap=document.createElement('div');wrap.className='geetest_wrap';holder.append(wrap);
+  wrap.append(slider.querySelector('.geetest_window'),slider);
+ }
+ if(mode==='v3-siblings-stale'){
+  const stale=document.createElement('div');stale.className='geetest_holder geetest_success';stale.style.display='none';stale.textContent='Previous verification';document.body.append(stale);
+ }
 }else{bg.style.backgroundImage=`url('${scene.toDataURL()}')`;ref.style.backgroundImage=`url('${piece.toDataURL()}')`}
 if(mode.startsWith('tencent')){
  const root=document.querySelector('.geetest_captcha');root.id='tCaptchaDyMainWrap';

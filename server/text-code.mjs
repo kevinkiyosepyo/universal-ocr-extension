@@ -13,14 +13,17 @@ export function codeConsensus(readings, minLength = 1) {
 export async function inferTextCode(task, config) {
   const endpoint = endpointURL(config.ollamaEndpoint);
   const original = await sharp(Buffer.from(task.image, 'base64'), { limitInputPixels: 20_000_000 }).rotate().resize({ width: 1400, height: 1400, fit: 'inside', withoutEnlargement: true }).flatten({ background: '#fff' }).png().toBuffer();
+  // Readings can agree after two treatments. Build later treatments only if needed,
+  // and retain the input height bound when enlarging a narrow image.
   const variants = [
-    await sharp(original).grayscale().normalize().png().toBuffer(),
-    await sharp(original).extend({ top: 20, bottom: 20, left: 20, right: 20, background: '#fff' }).png().toBuffer(),
-    original,
-    await sharp(original).grayscale().normalize().resize({ width: 900 }).png().toBuffer(),
+    () => sharp(original).grayscale().normalize().png().toBuffer(),
+    () => sharp(original).extend({ top: 20, bottom: 20, left: 20, right: 20, background: '#fff' }).png().toBuffer(),
+    () => original,
+    () => sharp(original).grayscale().normalize().resize({ width: 900, height: 1400, fit: 'inside' }).png().toBuffer(),
   ];
   const readings = [];
-  for (const image of variants) {
+  for (const variant of variants) {
+    const image = await variant();
     let response;
     try {
       response = await fetch(new URL('api/chat', endpoint), {

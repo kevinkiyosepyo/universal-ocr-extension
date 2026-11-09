@@ -11,6 +11,7 @@ export const PROVIDER_ORIGINS = {
   tencent: ['https://turing.captcha.qcloud.com/*', 'https://ca.turing.captcha.qcloud.com/*', 'https://captcha.gtimg.com/*'],
   prosopo: ['https://*.prosopo.io/*'],
   captchafox: ['https://*.captchafox.com/*'],
+  tiktok: ['https://*.tiktok.com/*'],
 };
 export const DEFAULT_PROVIDERS = ['recaptcha-v2', 'hcaptcha'];
 export const CHALLENGE_ORIGINS = [...new Set(Object.values(PROVIDER_ORIGINS).flat())];
@@ -30,7 +31,8 @@ export function providerURL(value, providers = Object.keys(PROVIDER_ORIGINS)) {
       (providers.some(id => id === 'geetest-v3' || id === 'geetest-v4') && /(^|\.)(geetest|geevisit)\.com$/.test(url.hostname)) ||
       (providers.includes('tencent') && ['turing.captcha.qcloud.com', 'ca.turing.captcha.qcloud.com', 'captcha.gtimg.com'].includes(url.hostname)) ||
       (providers.includes('prosopo') && /(^|\.)prosopo\.io$/.test(url.hostname)) ||
-      (providers.includes('captchafox') && /(^|\.)captchafox\.com$/.test(url.hostname));
+      (providers.includes('captchafox') && /(^|\.)captchafox\.com$/.test(url.hostname)) ||
+      (providers.includes('tiktok') && /(^|\.)tiktok\.com$/.test(url.hostname));
   } catch { return false; }
 }
 

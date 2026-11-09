@@ -24,6 +24,7 @@ const puzzleHTML = await readFile('tests/fixtures/puzzle.html', 'utf8');
 const managedHTML = await readFile('tests/fixtures/managed.html', 'utf8');
 const foxHTML = await readFile('tests/fixtures/fox-slide.html', 'utf8');
 const pointHTML = await readFile('tests/fixtures/points.html', 'utf8');
+const tiktokHTML = await readFile('tests/fixtures/tiktok.html', 'utf8');
 const fixture = createServer((req, res) => { res.setHeader('Content-Type', 'text/html'); res.end(`<title>Application fixture</title><iframe width="500" height="400" src="https://service.mtcaptcha.com/mtcv1/client/fixture${new URL(req.url, 'http://fixture').search}"></iframe>`); });
 fixture.listen(0, '127.0.0.1'); await once(fixture, 'listening'); const origin = `http://127.0.0.1:${fixture.address().port}`;
 let delay = 0, calls = 0, short = false, lastImage, uncertainPoints = false, shapeCalls = 0, shapeSolutions = [];
@@ -50,6 +51,8 @@ const context = await chromium.launchPersistentContext(join(temp, 'profile'), { 
 await context.route('https://service.mtcaptcha.com/mtcv1/client/fixture*', route => route.fulfill({ contentType: 'text/html', body: html }));
 await context.route('https://newassets.hcaptcha.com/fixture*', route => route.fulfill({ contentType: 'text/html', body: pointHTML }));
 await context.route('https://newassets.hcaptcha.com/point-adapter.js', route => route.fulfill({ contentType: 'text/javascript', body: '' }));
+await context.route('https://verify.tiktok.com/fixture*', route => route.fulfill({ contentType: 'text/html', body: tiktokHTML }));
+await context.route('https://verify.tiktok.com/tiktok-adapter.js', route => route.fulfill({ contentType: 'text/javascript', body: '' }));
 const report = [], errors = [];
 context.on('page', page => page.on('pageerror', error => errors.push(error.message)));
 try {
@@ -113,8 +116,8 @@ try {
     await target.bringToFront(); tabId = await worker.evaluate(async url => (await chrome.tabs.query({})).find(t => t.url === url).id, target.url());
   };
   delay = 0;
-  for (const version of ['v3', 'v4', 'tencent', 'tencent-scaled', 'tencent-fleeting']) {
-    await openPuzzle(version); await start(true, [version.startsWith('tencent') ? 'tencent' : 'geetest-' + version]);
+  for (const version of ['v3', 'v3-siblings', 'v3-siblings-stale', 'v4', 'tencent', 'tencent-scaled', 'tencent-fleeting']) {
+    await openPuzzle(version); await start(true, [version.startsWith('tencent') ? 'tencent' : version.startsWith('v3') ? 'geetest-v3' : 'geetest-v4']);
     try { await waitState(['widget-verified']); } catch (error) { throw new Error(`${version}: ${error.message}; ${JSON.stringify(await frame.evaluate(() => ({ counts, lastMove: moves.at(-1) })))}`); }
     assert.deepEqual(await frame.evaluate(() => counts), { drags: 1, submit: 0 });
     assert.equal(await frame.evaluate(() => trustedPointer), browserInput);
@@ -200,6 +203,34 @@ try {
   pointCounts = await frame.evaluate(() => counts);
   assert.equal(pointCounts.clicks.length, 3); assert.equal(pointCounts.verify, 1); assert.equal(pointCounts.submit, 0); assert.equal(shapeCalls, 1);
   report.push('A removed hCaptcha widget without a success receipt fails within the verification timeout');
+  await context.route(origin + '/tiktok*', route => route.fulfill({ contentType: 'text/html', body: `<title>TikTok application fixture</title><iframe width="500" height="550" src="https://verify.tiktok.com/fixture${new URL(route.request().url()).search}"></iframe>` }));
+  const openTikTok = async mode => {
+    await target.goto(origin + '/tiktok?mode=' + mode);
+    frame = target.frames().find(item => item.url().startsWith('https://verify.tiktok.com/fixture')); await frame.waitForFunction(() => window.ready);
+    await target.bringToFront(); tabId = await worker.evaluate(async url => (await chrome.tabs.query({})).find(tab => tab.url === url).id, target.url());
+  };
+  for (const mode of ['slide', 'whirl', 'points']) {
+    await openTikTok(mode); await start(true, ['tiktok']); await waitState(['verifying']);
+    const counts = await frame.evaluate(() => window.counts);
+    assert.equal(counts.submit, 0);
+    assert.equal(mode === 'points' ? counts.verify : counts.ends, 1);
+    assert.equal(await frame.evaluate(() => fixtureAccepted), true);
+    assert.equal((await send('CHALLENGE_GET', { tabId })).active, true);
+    await frame.evaluate(() => showSuccess()); await waitState(['widget-verified']);
+    report.push(`TikTok ${mode} in a provider frame uses its permitted task and waits for the exact SDK success marker`);
+  }
+  await openTikTok('points'); await start(false, ['tiktok']); await waitState(['review']);
+  assert.deepEqual(await frame.evaluate(() => counts), { clicks: [], drags: 0, ends: 0, verify: 0, submit: 0 });
+  report.push('TikTok review mode performs no clicks, drags, verification or submission');
+  delay = 1300; await openTikTok('points'); await start(true, ['tiktok']); await waitState(['recognizing']);
+  await send('CHALLENGE_STOP', { tabId }); await new Promise(resolve => setTimeout(resolve, 1600)); delay = 0;
+  assert.deepEqual(await frame.evaluate(() => counts), { clicks: [], drags: 0, ends: 0, verify: 0, submit: 0 });
+  report.push('Stopping a TikTok session during inference prevents all later input');
+  await openTikTok('points'); await start(true, ['tiktok']); await waitState(['verifying']);
+  await frame.evaluate(() => document.querySelector('#captcha-verify-container-main-page').remove());
+  assert.match((await waitState(['failed'])).detail, /has not confirmed verification/);
+  assert.equal(await frame.evaluate(() => counts.submit), 0);
+  report.push('A dismissed TikTok widget without its success marker is not counted as verification');
   await context.route(origin + '/managed*', route => route.fulfill({ contentType: 'text/html', body: managedHTML }));
   await worker.evaluate(() => chrome.storage.local.remove('service'));
   for (const provider of ['prosopo', 'captchafox']) {

@@ -175,7 +175,7 @@ export async function challengeRoute(message, sender, isUI) {
   }
   if (message.type === 'CHALLENGE_SOLVE') {
     const task = validateTask(message.task);
-    const allowed = { 'recaptcha-v2': ['grid'], hcaptcha: ['grid', 'ocr', 'points'], mtcaptcha: ['captcha-text'], 'text-captcha': ['captcha-text'], 'geetest-v3': ['puzzle'], 'geetest-v4': ['puzzle'], tencent: ['puzzle'], captchafox: ['points'] };
+    const allowed = { 'recaptcha-v2': ['grid'], hcaptcha: ['grid', 'ocr', 'points'], mtcaptcha: ['captcha-text'], 'text-captcha': ['captcha-text'], 'geetest-v3': ['puzzle'], 'geetest-v4': ['puzzle'], tencent: ['puzzle'], captchafox: ['points'], tiktok: ['puzzle', 'points', 'rotate-ring'] };
     const provider = message.provider || 'recaptcha-v2';
     if (!session.providers.includes(provider) || !allowed[provider]?.includes(task.type)) throw new Error('This task does not belong to the selected provider.');
     imageBase64(task.image);

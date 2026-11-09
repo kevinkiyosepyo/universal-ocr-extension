@@ -27,11 +27,14 @@ Every image is base64 or a `data:image/...;base64,...` URL, at most 15 MB and 20
 | `slider` | `image`: original background, `reference`: piece | Original pixel `x`, `y`, dimensions, and normalized top-left coordinates |
 | `puzzle` | `image`, transparent `reference` at the same scale, optional normalized `y` | Pixel/normalized position, alpha bounds, correlation, separation, and matching method |
 | `rotate` | `image`: rotated content, `reference`: upright matching content | `clockwiseDegrees` |
+| `rotate-ring` | `image`: outer circular image, `reference`: inner disk, `radiusRatio`: displayed inner/outer diameter ratio (0.2–0.9) | Relative inner `clockwiseDegrees`, `normalizedDrag`, `confidence`, `boundaryError` |
 | `pow` | `prefix`, `difficulty` (0–24) | Decimal `nonce` and SHA-256 `hash` |
 
 Confidence is a heuristic or model estimate in 0–1, not a calibrated success probability. OCR uses seven bundled Tesseract languages. Distorted text uses GLM-OCR with up to four image treatments, stopping after two exact readings agree. A score of 0.9 denotes agreement, not 90% accuracy. Grids, general points, and boxes use Qwen. The horizontal-pair strategy first measures two separated foreground regions without model inference; overlapping objects fall back to visual analysis. Piece matching expects an unscrambled matching piece and background at the same scale, each no larger than 1200 × 1200. Rotation compares circular image content; it does not infer which way an arbitrary object should face. Generic SHA-256 proof of work is not a Prosopo, AWS, or other provider protocol.
 
 ## Routes and lifecycle
+
+`rotate-ring` compares the visible neighboring edges of a concentric ring and disk. Sources must be square, with at least 64 pixels per side. It requires a continuous textured scene across the seam and rejects weak, repeating, transparent, or unrelated boundaries. It does not establish provider acceptance. The ratio describes displayed geometry, not the source images' pixel dimensions.
 
 - `GET /health`: engine and model availability.
 - `POST /v1/tasks`: returns HTTP 202 with a task ID and state.

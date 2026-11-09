@@ -88,12 +88,12 @@ const capabilities = {
   hcaptcha: 'Image grids and experimental static matching-shapes clicks; live acceptance unverified',
   mtcaptcha: 'Text reading, field fill, one missing-character retry; live acceptance not confirmed',
   'bls-text': 'Unambiguous text-image field pairing; BLS sites unverified',
-  'geetest-v3': 'Reconstructed canvas slider adapter; local tests only',
+  'geetest-v3': 'Canvas slider adapter; official demo stopped on uncertain recognition',
   'geetest-v4': 'Texture and outline matching; official demo rejected verification',
   prosopo: 'Native proof of work: official demo passed using the Chromium Browser Input build; other modes unverified',
   captchafox: 'Object slider passed the official demo using the Chromium Browser Input build; other modes unverified',
   tencent: 'Sprite slider adapter; official DOM inspected, acceptance unverified',
-  tiktok: 'Detection and generic tools; integration deferred',
+  tiktok: 'Experimental SDK-derived slider, circle and same-shape pair adapters; live acceptance unverified',
 };
 for (const provider of PROVIDERS) { const row = node('tr', ''); for (const value of [provider.name, 'Selectors available', capabilities[provider.id] || (provider.mode === 'provider-token' ? 'Provider-issued token; not implemented locally' : 'Detection only; provider integration not implemented')]) row.append(node('td', value)); $('provider-rows').append(row); }
 const popular = node('tr', ''); for (const value of ['PopularCaptcha / hCaptcha-style', 'Uses the hCaptcha adapter', 'Grids and experimental matching-shapes clicks; other click, drag, video, and token workflows unverified']) popular.append(node('td', value)); $('provider-rows').prepend(popular);

@@ -4,7 +4,9 @@ An independent, open-source browser extension and local recognition service. Rea
 
 ![Universal OCR workbench](docs/workbench.png)
 
-Version 2.3 adds bounded hCaptcha matching-shapes clicks, scaled-sprite capture, and brief success-marker handling. See the [2.3 verification report](docs/verification-2.3.md).
+Version 2.4 adds an experimental TikTok slider, circle-rotation, and same-shape-pair adapters, fixes the Geetest v3 popup layout, and reduces rotation and repeat-start work. TikTok live acceptance remains unverified. See the [2.4 verification report](docs/verification-2.4.md).
+
+Version 2.3 added bounded hCaptcha matching-shapes clicks, scaled-sprite capture, and brief success-marker handling. See the [2.3 verification report](docs/verification-2.3.md).
 
 Version 2.2 added dedicated text-code recognition, MTCaptcha field handling, Geetest and Tencent slider adapters, and native Procaptcha / CaptchaFox workflows. Procaptcha proof of work and CaptchaFox's object slider passed official public demos with the **Browser Input** build. Geetest and MTCaptcha live tests did not confirm acceptance. This is not full CaptchaSonic parity: see the [capability matrix](docs/COMPATIBILITY.md) and [measured results](docs/verification-2.2.md).
 
@@ -12,7 +14,7 @@ The referenced [CaptchaSonic repository](https://github.com/Captcha-Sonic/Captch
 
 ## CAPTCHA support status
 
-**This project does not support all CAPTCHA types advertised by CaptchaSonic.** This table describes version **2.3.0**. Detection, generic image tools, and local fixtures do not establish live provider acceptance.
+**This project does not support all CAPTCHA types advertised by CaptchaSonic.** This table describes version **2.4.0**. Detection, generic image tools, and local fixtures do not establish live provider acceptance.
 
 | CAPTCHA type / feature | Status | What works and what is missing |
 | --- | --- | --- |
@@ -20,13 +22,13 @@ The referenced [CaptchaSonic repository](https://github.com/Captcha-Sonic/Captch
 | reCAPTCHA v2 (Visible & Invisible) | **Partial — visible grids** | Capture, replacement tiles, multiple rounds, and optional Verify; one 2.1 public-demo success. Invisible flows, audio, and other modes remain unverified. |
 | reCAPTCHA v3 | **Not integrated** | Detection only; no provider-issued score or token workflow. |
 | AWS WAF CAPTCHA | **Not integrated** | Detection and generic tools; needs a provider adapter and test deployment. |
-| Geetest v3 (Slide / Click) | **Partial — slider fixtures** | Reconstructed canvas capture and slider adapter pass local tests; live acceptance and click modes are missing. |
+| Geetest v3 (Slide / Click) | **Partial — slider fixtures** | Reconstructed canvas capture and current popup layout pass local tests. The official demo stopped on uncertain recognition; live acceptance and click modes are missing. |
 | Geetest v4 (Slide) | **Partial — live rejection** | CSS capture, texture/outline matching, and slider input; official demo rejected verification. |
 | BLS OCR / Text CAPTCHA | **Partial — text recognition** | Dedicated local code model and field pairing; distorted codes can still be wrong. BLS acceptance unverified. |
 | MTCaptcha | **Partial — live unverified** | Image capture, field fill, and one missing-character retry; fresh demo acceptance was not confirmed. |
 | CaptchaFox | **Object-slider demo verified** | Native checkbox and object slider passed with Browser Input; other modes/sites unverified. |
 | Tencent CAPTCHA | **Partial — slider fixtures** | Sprite capture and slider adapter pass local tests, including scaled layouts. The official demo verified its checkbox without showing a puzzle; live slider acceptance remains unverified. |
-| TikTok CAPTCHA | **Deferred** | Detection and generic tools; provider slide, circle, and click workflows remain unintegrated. |
+| TikTok CAPTCHA | **Experimental — SDK fixtures** | Slider, concentric-circle alignment, and English same-shape-pair adapters; blob capture, cancellation, and exact success-marker handling. Live acceptance and other click modes remain unverified or unsupported. |
 | Prosopo / Procaptcha | **Proof-of-work demo verified** | Native flow passed with Browser Input and a provider response; other modes unverified. |
 | Binance CAPTCHA | **Not integrated** | Detection and generic tools; needs a provider adapter and test page. |
 | Universal OCR | **Working — general text** | Offline OCR in seven languages, uploads, region capture, and editable results; not universal accuracy on distorted text or handwriting. |
@@ -37,7 +39,7 @@ The referenced [CaptchaSonic repository](https://github.com/Captcha-Sonic/Captch
 
 ## Install the extension
 
-1. Download and extract the v2.3.0 ZIP for your browser from [Releases](https://github.com/kevinkiyosepyo/universal-ocr-extension/releases/tag/v2.3.0).
+1. Download and extract the v2.4.0 ZIP for your browser from [Releases](https://github.com/kevinkiyosepyo/universal-ocr-extension/releases/tag/v2.4.0).
 2. **Chrome / Brave / Chromium:** open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
 3. **Edge:** use `edge://extensions` and the Edge package with the same steps.
 4. **Firefox 140+:** open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select the extracted `manifest.json`. This unsigned build must be reloaded after restarting Firefox; permanent installation requires Mozilla signing.
@@ -85,7 +87,7 @@ For ordinary text OCR, no service is needed. `npm start` remains available for s
 2. Default review mode displays text or slider guidance, or selects grid cells for review. It does not type a code, release a slider, start a native checkbox, or press Verify.
 3. **Allow CAPTCHA completion** enables those actions. Completion may resume a pending form action on the site, so do not use it on uncertain previous submissions.
 4. The separate **Browser Input** package adds Chrome's required `debugger` permission. Install it instead of the ordinary Chromium package when needed, then explicitly enable **Use browser input** for a session. It uses pointer events only, attaches to the selected top-level tab for each action, and detaches afterward. Chrome may show a debugging banner. The ordinary packages do not request this permission. Browser input is unavailable in Firefox and nested frames.
-5. Use **Stop** at any time. Navigation, expiry, uncertain recognition, ambiguous controls, and provider rejection stop the session. Stopping a drag returns to its starting position before releasing.
+5. Use **Stop** at any time. Navigation, expiry, uncertain recognition, ambiguous controls, and provider rejection stop the session. Pointer-based drags return to their starting position before releasing. TikTok HTML drags stop without dispatching the verification-triggering dragend event; refresh that challenge before retrying.
 
 The adapters use rendered images and provider-owned widgets. They do not manufacture or insert provider tokens. A widget response is not an application receipt. CaptchaFox's protected canvas is captured as a cropped screenshot; only that widget crop reaches the configured recognition service. The screenshot path requires toolbar-granted active-tab access.
 
@@ -125,6 +127,7 @@ npm run test:browser
 npm run test:automation
 npm run test:challenges
 npm run test:points
+npm run test:tiktok
 npm run test:widgets
 npm run test:browser-input
 npm run test:firefox
@@ -136,7 +139,7 @@ npm run package
 
 Builds go to `dist/`, `dist-firefox/`, `dist-edge/`, and `dist-browser-input/`. ZIPs and SHA-256 checksums go to `artifacts/`. Linux browser checks need Playwright's browser system dependencies and CJK fonts (`npx playwright install --with-deps chromium firefox`, then install `fonts-noto-cjk`).
 
-Tests cover real OCR, geometry, settings, authenticated API requests, Unicode transport, cancellation, idempotency, image comparison, browser rule execution, application-submit rejection, stale-document protection, themes, proxy restoration, and real local vision inference. Browser tests use disposable profiles and synthetic fixtures. Firefox uses a temporary add-on and a test-only DOM driver because Playwright cannot instrument its extension-process tabs. No test opens or submits real applications. See [verification evidence and limits](docs/verification-2.2.md).
+Tests cover real OCR, geometry, settings, authenticated API requests, Unicode transport, cancellation, idempotency, image comparison, browser rule execution, application-submit rejection, stale-document protection, themes, proxy restoration, and real local vision inference. Browser tests use disposable profiles and synthetic fixtures. Firefox uses a temporary add-on and a test-only DOM driver because Playwright cannot instrument its extension-process tabs. No test opens or submits real applications. See [verification evidence and limits](docs/verification-2.4.md).
 
 ## Source map
 

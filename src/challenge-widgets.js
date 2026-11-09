@@ -1,5 +1,6 @@
 import { visible, captureElement, fingerprint, assertControl } from './challenge-dom.js';
 import { hcaptchaPointsSnapshot } from './hcaptcha-points.js';
+import { tiktokSnapshot, tiktokVerified, tiktokFailure } from './tiktok-widget.js';
 
 const all = (root, selector) => [...root.querySelectorAll(selector)].filter(visible);
 const unique = (items, description) => {
@@ -7,6 +8,10 @@ const unique = (items, description) => {
   return items[0];
 };
 export function widgetSnapshot(providers) {
+  if (providers.includes('tiktok')) {
+    const tiktok = tiktokSnapshot();
+    if (tiktok) return tiktok;
+  }
   if (providers.includes('hcaptcha')) {
     const points = hcaptchaPointsSnapshot();
     if (points) return points;
@@ -26,9 +31,12 @@ export function widgetSnapshot(providers) {
     }
   }
   if (providers.includes('geetest-v3')) {
-    const root = unique(all(document, '.geetest_panel .geetest_slider, .geetest_holder.geetest_wind .geetest_slider'), 'Geetest v3 slider');
+    // The v3 popup places the canvas and slider in sibling containers. Scope
+    // both to the canvas's own widget, rather than looking inside the handle row.
+    const image = unique(all(document, '.geetest_panel canvas.geetest_canvas_bg, .geetest_holder canvas.geetest_canvas_bg'), 'Geetest v3 background');
+    const root = image?.closest('.geetest_holder, .geetest_panel');
     if (root) {
-      const image = unique(all(root, 'canvas.geetest_canvas_bg'), 'background'), reference = unique(all(root, 'canvas.geetest_canvas_slice'), 'piece'), handle = unique(all(root, '.geetest_slider_button'), 'slider handle');
+      const reference = unique(all(root, 'canvas.geetest_canvas_slice'), 'piece'), handle = unique(all(root, '.geetest_slider_button'), 'slider handle');
       // The provider's canvases already contain its reconstructed image;
       // decoding the network sprite a second time would scramble it again.
       if (image && reference && handle) return { type: 'puzzle', provider: 'geetest-v3', name: 'Geetest v3', root, image, reference, handle };
@@ -62,17 +70,22 @@ export function widgetSnapshot(providers) {
 }
 
 export function widgetVerified(providers) {
+  if (providers.includes('tiktok') && tiktokVerified()) return true;
   if (providers.includes('tencent') && all(document, '#tCaptchaDyMainWrap .tencent-captcha-dy__verify-status-img--success').length) return true;
   for (const [provider, name] of [['prosopo', 'procaptcha-response'], ['captchafox', 'cf-captcha-response']]) {
     if (providers.includes(provider) && [...document.querySelectorAll(`input[name="${name}"],textarea[name="${name}"]`)].some(input => input.value.length > 0)) return true;
   }
   if (providers.some(id => id.startsWith('geetest-'))) {
-    return Boolean(document.querySelector('.geetest_captcha.geetest_success, .geetest_holder.geetest_success, .geetest_holder.geetest_success_animate'));
+    return all(document, '.geetest_captcha.geetest_success, .geetest_holder.geetest_success, .geetest_holder.geetest_success_animate').length > 0;
   }
   return false;
 }
 
 export function widgetFailure(providers) {
+  if (providers.includes('tiktok')) {
+    const failure = tiktokFailure();
+    if (failure) return failure;
+  }
   if (providers.includes('captchafox') && all(document, '.cf-challenge__status').some(el => /try again|incorrect|failed|error/i.test(el.innerText))) return 'CaptchaFox rejected verification. No success was confirmed.';
   if (providers.some(id => id.startsWith('geetest-'))) {
     const root = all(document, '.geetest_captcha, .geetest_holder').find(el => /captcha forbidden|network error|try again/i.test(el.innerText));

@@ -10,7 +10,7 @@ export const PROVIDERS = [
   { id: 'mtcaptcha', name: 'mtCaptcha', selectors: ['.mtcaptcha', 'iframe[src*="mtcaptcha.com"]'], hosts: ['mtcaptcha.com'], mode: 'widget' },
   { id: 'captchafox', name: 'CaptchaFox', selectors: ['.captchafox', '.cf-checkbox-box', 'input[name="cf-captcha-response"]', 'iframe[src*="captchafox.com"]', 'script[src*="captchafox.com"]'], hosts: ['captchafox.com'], mode: 'widget' },
   { id: 'tencent', name: 'Tencent CAPTCHA', selectors: ['#tCaptchaDyMainWrap', '#tcaptcha_iframe', 'iframe[src*="captcha.gtimg.com"]', 'iframe[src*="turing.captcha.qcloud.com"]'], hosts: ['captcha.gtimg.com', 'turing.captcha.qcloud.com', 'ca.turing.captcha.qcloud.com'], mode: 'widget' },
-  { id: 'tiktok', name: 'TikTok CAPTCHA', selectors: ['#captcha-verify-container', '.captcha_verify_container', '[class*="secsdk-captcha"]'], hosts: ['tiktok.com'], mode: 'widget' },
+  { id: 'tiktok', name: 'TikTok CAPTCHA', selectors: ['#captcha-verify-container-main-page', '.captcha-verify-container', '#captcha-verify-container', '.captcha_verify_container', '[class*="secsdk-captcha"]'], hosts: ['tiktok.com'], mode: 'widget' },
   { id: 'prosopo', name: 'Prosopo / Procaptcha', selectors: ['.procaptcha', '.prosopo-checkbox', '.prosopo-widget__content', 'iframe[src*="prosopo"]', 'script[src*="procaptcha"]'], hosts: ['prosopo.io'], mode: 'provider-token' },
   { id: 'binance', name: 'Binance CAPTCHA', selectors: ['#bcap-root', '[class*="bcap-"]', 'iframe[src*="captcha"][src*="binance"]'], hosts: ['binance.com'], mode: 'widget' },
 ];

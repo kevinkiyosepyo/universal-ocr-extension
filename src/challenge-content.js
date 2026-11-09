@@ -3,6 +3,7 @@ import { snapshot, captureGrid, captureElement, fingerprint, selected, clickTile
 import { gridChanges } from './challenge-common.js';
 import { widgetSnapshot, captureWidget, applyText, applyPuzzle, puzzleDrag, widgetVerified, widgetFailure, managedSnapshot, startManaged, textFeedback } from './challenge-widgets.js';
 import { capturePointHeader, resolvePointInstruction, pointSelection, applyPointSelection, pointSceneMatches } from './hcaptcha-points.js';
+import { captureTikTok, applyTikTok, previewTikTok } from './tiktok-widget.js';
 
 if (globalThis.__universalChallenge) {
   void globalThis.__universalChallenge();
@@ -39,15 +40,16 @@ if (globalThis.__universalChallenge) {
   function resetSuccessObserver() {
     successObserver?.disconnect(); successObserver = undefined; successSeen = false;
   }
-  function observeTencentSuccess() {
-    if (!session.providers.includes('tencent')) return;
+  function observeProviderSuccess() {
+    const observed = session.providers.filter(provider => ['tencent', 'tiktok'].includes(provider));
+    if (!observed.length) return;
     const expected = generation, id = session.id;
     // Provider dialogs can remove their success marker before the next poll.
     // Latch only an observed marker from this active session; no DOM writes or
     // reporting occur in this callback, so HUD changes cannot cause a loop.
     successObserver = new MutationObserver(() => {
       if (stopped || generation !== expected || session?.id !== id || !session.active || successSeen) return;
-      if (widgetVerified(['tencent'])) successSeen = true;
+      if (widgetVerified(observed)) successSeen = true;
     });
     successObserver.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
   }
@@ -81,7 +83,7 @@ if (globalThis.__universalChallenge) {
       }
       if (managed?.started && !lastActionAt && Date.now() - managed.startedAt > 30_000) throw new Error('The provider has not confirmed verification. Complete any challenge it shows manually.');
       const widget = widgetSnapshot(session.providers);
-      if (widget) { if (widget.mode === 'point-click') await handlePoints(widget, expected); else await handleWidget(widget, expected); return; }
+      if (widget) { if (widget.mode === 'tiktok') await handleTikTok(widget, expected); else if (widget.mode === 'point-click') await handlePoints(widget, expected); else await handleWidget(widget, expected); return; }
       const challenge = snapshot();
       if (!challenge) return;
       if (!session.providers.includes(challenge.provider)) return;
@@ -167,6 +169,29 @@ if (globalThis.__universalChallenge) {
     pointAttempt = { image, points, at: Date.now() };
     await report('verifying', 'Points selected. Waiting for the provider or the next challenge round…');
   }
+  async function handleTikTok(challenge, expected) {
+    const capture = value => captureTikTok(value, url => send('CHALLENGE_FETCH', { url }), cache);
+    const captured = await capture(challenge);
+    if (!await current(expected)) return;
+    if (lastStable !== captured.fingerprint) { lastStable = captured.fingerprint; stableAt = Date.now(); return; }
+    if (Date.now() - stableAt < 350 || lastFingerprint === captured.fingerprint) return;
+    await report('recognizing', 'Reading the TikTok challenge…');
+    const solution = await send('CHALLENGE_SOLVE', { provider: 'tiktok', task: captured.task });
+    if (!await current(expected)) return;
+    const latest = widgetSnapshot(session.providers);
+    const same = latest?.mode === 'tiktok' && latest.root === challenge.root && latest.image === challenge.image && latest.handle === challenge.handle && latest.verify === challenge.verify && (await capture(latest)).fingerprint === captured.fingerprint;
+    if (!await current(expected)) return;
+    if (!same) {
+      if (++staleCount >= 4) throw new Error('The challenge keeps changing. Wait for it to settle and start again.');
+      return;
+    }
+    const preview = previewTikTok(latest, solution);
+    staleCount = 0; lastFingerprint = captured.fingerprint; lastActionAt = Date.now();
+    if (!session.autoVerify) { await report('review', 'TikTok result ready for review. No input was applied.', preview); return; }
+    await applyTikTok(latest, solution, () => current(expected));
+    widgetPendingAt = Date.now(); lastVerified = captured.fingerprint;
+    await report('verifying', 'Answer applied. Waiting for TikTok to confirm verification…');
+  }
   async function handleWidget(challenge, expected) {
     const capture = value => captureWidget(value, url => send('CHALLENGE_FETCH', { url }), cache, rect => send('CHALLENGE_CAPTURE', { provider: value.provider, rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }, viewport: { width: innerWidth, height: innerHeight } }));
     const captured = await capture(challenge);
@@ -222,7 +247,7 @@ if (globalThis.__universalChallenge) {
     try {
       const next = await send('CHALLENGE_HELLO');
       if (expected !== generation || stopped) return;
-      session = next; observeTencentSuccess(); show(session); timer = setInterval(tick, 400); void tick();
+      session = next; observeProviderSuccess(); show(session); timer = setInterval(tick, 400); void tick();
     } catch { if (expected === generation) { stopped = true; resetSuccessObserver(); } }
   }
   api.runtime.onMessage.addListener(message => { if (message.type === 'CHALLENGE_STATUS') { if (session?.id === message.session.id) { show(message.session); if (!message.session.active) { stopped = true; generation++; clearInterval(timer); resetSuccessObserver(); } } } });

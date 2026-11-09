@@ -1,4 +1,4 @@
-export const TASK_TYPES = Object.freeze(['ocr', 'captcha-text', 'grid', 'points', 'bbox', 'slider', 'puzzle', 'rotate', 'pow']);
+export const TASK_TYPES = Object.freeze(['ocr', 'captcha-text', 'grid', 'points', 'bbox', 'slider', 'puzzle', 'rotate', 'rotate-ring', 'pow']);
 export const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
 export class TaskError extends Error {
@@ -37,7 +37,11 @@ export function validateTask(input) {
     if (!Number.isInteger(input.minLength) || input.minLength < 1 || input.minLength > 32) throw new TaskError('INVALID_TASK', 'Minimum code length must be between 1 and 32.');
     task.minLength = input.minLength;
   }
-  if (['slider', 'puzzle', 'rotate'].includes(task.type)) task.reference = imageBase64(input.reference);
+  if (['slider', 'puzzle', 'rotate', 'rotate-ring'].includes(task.type)) task.reference = imageBase64(input.reference);
+  if (task.type === 'rotate-ring') {
+    if (!Number.isFinite(input.radiusRatio) || input.radiusRatio < .2 || input.radiusRatio > .9) throw new TaskError('INVALID_TASK', 'The inner/outer circle diameter ratio must be between 0.2 and 0.9.');
+    task.radiusRatio = input.radiusRatio;
+  }
   if (task.type === 'puzzle' && input.y !== undefined) {
     if (!Number.isFinite(input.y) || input.y < 0 || input.y > 1) throw new TaskError('INVALID_TASK', 'Piece y must be a normalized coordinate between 0 and 1.');
     task.y = input.y;

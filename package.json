@@ -1,6 +1,6 @@
 {
   "name": "universal-ocr-extension",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "private": true,
   "description": "Local OCR, visual recognition tools, and opt-in browser automation",
   "type": "module",
@@ -32,7 +32,8 @@
     "test:browser-input": "node scripts/smoke-widgets.mjs --browser-input",
     "test:text-code": "node scripts/smoke-text-code.mjs",
     "benchmark": "node scripts/benchmark.mjs",
-    "test:points": "node scripts/smoke-points.mjs"
+    "test:points": "node scripts/smoke-points.mjs",
+    "test:tiktok": "node scripts/smoke-tiktok.mjs"
   },
   "dependencies": {
     "@tesseract.js-data/chi_sim": "1.0.0",

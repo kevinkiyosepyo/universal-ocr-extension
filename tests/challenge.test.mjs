@@ -19,6 +19,10 @@ test('provider access is scoped to the selected adapter, including managed widge
  assert.equal(providerURL('https://static.geetest.com/captcha/one.png',['geetest-v4']),true);
  assert.equal(providerURL('https://static.geetest.com.evil.test/captcha/one.png',['geetest-v4']),false);
  assert.equal(imageURL('https://static.geetest.com/captcha/one.png','https://example.com',['mtcaptcha']),false);
+ assert.equal(providerURL('https://verify.tiktok.com/captcha',['tiktok']),true);
+ assert.equal(providerURL('https://verify.tiktok.com/captcha',['hcaptcha']),false);
+ assert.equal(providerURL('https://tiktok.com.evil.test/captcha',['tiktok']),false);
+ assert.equal(imageURL('https://other.example/image.png','https://lifeattiktok.com',['tiktok']),false);
  assert.throws(()=>challengeProviders(['recaptcha-v3']),/no challenge adapter/);
  assert.throws(()=>challengeProviders([]),/no challenge adapter/);
 });
@@ -38,6 +42,8 @@ test('distorted-text and grid-layout contracts preserve only valid output',()=>{
  assert.throws(()=>validateTask({type:'captcha-text',image:'AAAA',minLength:100}),/length/);
  assert.throws(()=>validateSolution({type:'captcha-text',minLength:4},{text:'JMR',confidence:1}),/required length/);
  assert.equal(validateTask({type:'captcha-text',image:'AAAA',minLength:4}).minLength,4);
+ assert.equal(validateTask({type:'rotate-ring',image:'AAAA',reference:'AAAA',radiusRatio:128/210}).radiusRatio,128/210);
+ for(const radiusRatio of [undefined,NaN,0,.1,.91,1,Infinity])assert.throws(()=>validateTask({type:'rotate-ring',image:'AAAA',reference:'AAAA',radiusRatio}),/diameter ratio/);
 });
 test('invisible v2 and explicit rendering scripts are not mistaken for score-based v3', () => {
   assert.equal(scoreScript('https://www.google.com/recaptcha/api.js?render=explicit'), false);

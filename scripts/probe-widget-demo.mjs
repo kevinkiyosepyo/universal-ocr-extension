@@ -14,6 +14,7 @@ const provider = process.argv[2] || 'mtcaptcha';
 const browserInput = process.argv.includes('--browser-input');
 const demos = {
   mtcaptcha: 'https://service.mtcaptcha.com/mtcv1/demo/index.html',
+  'geetest-v3': 'https://demos.geetest.com/slide-en.html',
   'geetest-v4': 'https://gt4.geetest.com/demov4/slide-float-en.html',
   prosopo: 'https://demo.prosopo.io/pow-explicit.html',
   captchafox: 'https://captchafox.com/#demo',
@@ -77,6 +78,9 @@ try {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     await widget.locator('.mtcap-image').screenshot({ path: join(out, 'image.png') });
+  } else if (provider === 'geetest-v3') {
+    await target.getByLabel('Click to verify', { exact: true }).first().click();
+    await target.locator('canvas.geetest_canvas_bg').waitFor({ timeout: 30_000 });
   } else if (provider === 'geetest-v4') {
     await target.locator('.geetest_btn_click').click();
     await target.locator('.geetest_box .geetest_slide .geetest_bg').waitFor({ timeout: 30_000 });
@@ -123,7 +127,7 @@ try {
     report.demoStatus = await target.locator('.captcha-demo__button').allTextContents();
     report.providerResponsePresent = report.demoStatus.some(text => /验证成功/.test(text));
     report.widgetMessage = await target.locator('#tCaptchaDyMainWrap').allTextContents();
-  } else report.providerResponsePresent = responseSelector ? await target.locator(responseSelector).evaluateAll(nodes => nodes.some(node => node.value.length > 0)) : await target.locator('.geetest_captcha').evaluateAll(nodes => nodes.some(node => node.classList.contains('geetest_success')));
+  } else report.providerResponsePresent = responseSelector ? await target.locator(responseSelector).evaluateAll(nodes => nodes.some(node => node.value.length > 0)) : await target.locator('.geetest_captcha.geetest_success, .geetest_holder.geetest_success, .geetest_holder.geetest_success_animate').count() > 0;
   report.accepted = report.providerResponsePresent && report.outcome.state === 'widget-verified';
   if (provider === 'mtcaptcha' && !report.accepted && process.argv.includes('--diagnose-input')) {
     const input = target.frameLocator('iframe[src*="/client/iframe.html"]').locator('.mtcap-inputtext');

@@ -26,12 +26,12 @@ This is an independent implementation, not a copy of CaptchaSonic's private solv
 | reCAPTCHA v2 invisible | Detection distinguished from v3; existing adapter can see a visible image grid | Trigger and callback flows remain unverified; no form Submit trigger |
 | reCAPTCHA v3 | Score-script / action-button detection | Site-specific provider score and token workflow; no local token generation |
 | AWS WAF | Widget detection and generic image comparison | Provider adapter and an available test deployment |
-| Geetest v3 | Reconstructed canvas slider adapter, local browser tests | Live acceptance and click / non-slider modes |
+| Geetest v3 | Reconstructed canvas slider adapter and observed popup layout; official demo reached recognition but stopped on low confidence | Live acceptance and click / non-slider modes |
 | Geetest v4 | CSS image capture, alpha-aware texture/outline matcher, guarded slider drag | Official demo rejected verification, including browser-input test; non-slider modes |
 | MTCaptcha | Image capture, dedicated OCR, field insertion, one bounded missing-character retry | Fresh public-demo acceptance was not confirmed; model errors remain |
 | CaptchaFox | Native checkbox, cropped canvas capture, object slider, fast foreground path and vision fallback | Official object-slider demo passed; other modes and sites unverified |
 | Tencent | Current sprite-slider DOM adapter, including scaled-layout tests; official demo completed native checkbox verification without a puzzle | Live slider acceptance and non-slider adapters |
-| TikTok | Detection and generic image tools | Integration deferred; not tested in this release |
+| TikTok | Experimental current-SDK slider, circle-rotation, and English same-shape-pair adapters; blob capture, guarded input, exact success-marker handling | Live acceptance, other click modes, CSS-scaled widgets, real-world ring-image continuity, and Careers verification |
 | Prosopo / Procaptcha | Native proof-of-work flow; official demo passed with a provider response | Image, icon-order, puzzle, and invisible modes unverified |
 | Binance | Widget detection and generic image tools | Provider-specific adapter and a test page |
 | hCaptcha | Image-grid and static matching-shapes adapters, with fixture-tested selections / verification | Live acceptance; drawing, motion, spatial and other non-grid modes |
@@ -70,3 +70,7 @@ CaptchaSonic's own [hCaptcha recognition documentation](https://captchasonic.com
 AWS's [integration instructions](https://docs.aws.amazon.com/waf/latest/developerguide/waf-js-captcha-api.html) require a configured integration URL and a key authorized for the client domain. Its [official example](https://github.com/aws-samples/aws-waf-captcha-react-demo) requires deployment rather than providing a shared hosted demo. No suitable official Binance CAPTCHA demo or SDK contract was found in the follow-up search. These remain integration blockers, not successful tests.
 
 Additional primary references: [MTCaptcha](https://docs.mtcaptcha.com/), [Geetest](https://docs.geetest.com/captcha/guide), [Procaptcha rendering](https://docs.prosopo.io/en/basics/client-side-rendering/), [CaptchaFox widget API](https://docs.captchafox.com/en/widget-api), [invisible reCAPTCHA v2](https://developers.google.com/recaptcha/docs/invisible), and [GLM-OCR](https://ollama.com/library/glm-ocr).
+
+## Version 2.4 evidence
+
+See [the 2.4 verification report](verification-2.4.md) for the TikTok SDK contract, fixture scope, Geetest v3 observation, and measured performance changes. TikTok remains experimental; no live Careers verification is claimed.

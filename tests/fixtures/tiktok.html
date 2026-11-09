@@ -1,0 +1,50 @@
+<!doctype html><meta charset="utf-8"><title>TikTok SDK geometry fixture</title>
+<style>
+body{margin:20px;font:16px sans-serif}.captcha-verify-container{width:380px;padding:16px;border:1px solid #ddd;box-sizing:border-box}
+#captcha-verify-container-main-page{width:348px}#scene{position:relative;width:348px;height:217px}img{display:block}#scene>img{width:348px;height:217px}
+#piece{position:absolute;left:0;top:68px;width:70px;height:70px}#piece img{width:70px;height:70px}.track{position:relative;height:40px;margin-top:8px;background:#eee;border-radius:20px}
+#captcha_slide_button{width:64px;height:40px}.cap-absolute{position:absolute}.cap-cursor-pointer{cursor:pointer}.mark{width:14px;height:14px;background:#ff7f00;border-radius:50%;pointer-events:none}
+button{padding:8px}#confirm{width:100%;margin:20px 0}.scaled{transform:scale(.5);transform-origin:top left}
+</style>
+<form id="application"><div class="captcha-verify-container"><div id="captcha-verify-container-main-page"></div></div><button id="submit-application">Submit application</button></form>
+<script type="module">
+import * as adapter from '/tiktok-adapter.js';
+window.adapter=adapter;
+const mode=new URL(location.href).searchParams.get('mode')||'slide',root=document.querySelector('#captcha-verify-container-main-page');
+window.counts={clicks:[],drags:0,ends:0,verify:0,submit:0};window.moves=[];window.fixtureAccepted=false;
+window.showSuccess=()=>{root.innerHTML='<svg viewBox="0 0 48 48" fill="currentColor" width="32" height="32"><circle cx="24" cy="24" r="22" fill="#fff"></circle><path fill="#0BE09B" d="M24 46a22 22 0 1 0 0-44 22 22 0 0 0 0 44Zm10.4-30.67c.59.38.76 1.16.4 1.75l-11 17.58a2.51 2.51 0 0 1-4.04.34l-7.33-8.39c-.47-.5-.41-1.33.11-1.78l1.92-1.67c.51-.45 1.3-.4 1.77.13l5.1 5.82 9.2-14.71c.35-.6 1.13-.77 1.73-.4l2.13 1.33Z"></path></svg>';};
+document.querySelector('form').addEventListener('submit',event=>{event.preventDefault();counts.submit++;});
+if(mode.includes('scaled'))document.querySelector('.captcha-verify-container').classList.add('scaled');
+const blob=canvas=>new Promise(resolve=>canvas.toBlob(value=>resolve(URL.createObjectURL(value))));
+const background=document.createElement('canvas');background.width=348;background.height=217;const ctx=background.getContext('2d');
+for(let y=0;y<217;y++)for(let x=0;x<348;x++){const v=(Math.imul(x+153,1103515245)^Math.imul(y+71,1234567))>>>0;ctx.fillStyle=`rgb(${v%200+25},${(v>>>8)%200+25},${(v>>>16)%200+25})`;ctx.fillRect(x,y,1,1);}
+const original=await blob(background);window.refresh=async()=>{ctx.fillStyle='#a3f';ctx.fillRect(0,0,30,30);const image=root.querySelector('img');image.src=await blob(background);await image.decode();};
+window.showError=()=>{const p=document.createElement('p');p.textContent='Unable to verify. Please try again.';root.append(p);};
+if(mode.startsWith('points')){
+  root.innerHTML='<p>Select 2 objects that are the same shape</p><div id="scene"><img class="cap-cursor-pointer" draggable="false"></div><button type="button" id="confirm" disabled>Confirm</button>';
+  const image=root.querySelector('img');image.src=original;
+  image.addEventListener('click',event=>{const r=image.getBoundingClientRect();counts.clicks.push({x:(event.clientX-r.x)/image.offsetWidth,y:(event.clientY-r.y)/image.offsetHeight});const marker=document.createElement('div');marker.className='cap-absolute cap-cursor-pointer mark';marker.style.left=(counts.clicks.at(-1).x*348)+'px';marker.style.top=(counts.clicks.at(-1).y*217)+'px';document.querySelector('#scene').append(marker);document.querySelector('#confirm').disabled=false;
+    if(mode==='points-refresh'&&counts.clicks.length===1)window.refresh();if(mode==='points-prompt'&&counts.clicks.length===1)root.querySelector('p').textContent='Tap the objects in the order that they appear';});
+  root.querySelector('#confirm').addEventListener('click',()=>{counts.verify++;window.fixtureAccepted=counts.clicks.length===2;if(fixtureAccepted&&mode==='points-pass')showSuccess();});
+}else if(mode.startsWith('whirl')){
+  const outerSize=mode==='whirl-narrow'?170:210,innerSize=mode==='whirl-narrow'?105:128,ratio=innerSize/outerSize;
+  root.innerHTML=`<p>Drag the slider to fit the puzzle</p><div id="rings" style="position:relative;display:flex;align-items:center;justify-content:center;height:${outerSize}px"><img style="clip-path:circle(50%);width:${outerSize}px;height:${outerSize}px;transform:rotate(0deg)"><img style="position:absolute;clip-path:circle(50%);width:${innerSize}px;height:${innerSize}px;transform:rotate(0deg)"></div><div class="track"><div id="circle-drag" draggable="true" style="position:absolute"><button type="button" id="captcha_slide_button" class="secsdk-captcha-drag-icon" disabled>Drag</button></div></div>`;
+  const scene=(x,y)=>[128+45*Math.sin(23*x+19*y+.6)+30*Math.cos(7*x-27*y),128+45*Math.cos(29*x+11*y+.3)+30*Math.sin(17*x-19*y),128+45*Math.sin(13*x+31*y+1.2)+30*Math.cos(23*x-7*y)];
+  const render=async(size,scale,rotation)=>{const canvas=document.createElement('canvas');canvas.width=canvas.height=size;const c=canvas.getContext('2d'),pixels=c.createImageData(size,size),angle=rotation*Math.PI/180;for(let y=0;y<size;y++)for(let x=0;x<size;x++){const dx=((x+.5)/size-.5)*scale,dy=((y+.5)/size-.5)*scale,rgb=mode==='whirl-flat'?[127,127,127]:scene(dx*Math.cos(angle)+dy*Math.sin(angle),dy*Math.cos(angle)-dx*Math.sin(angle)),at=(y*size+x)*4;for(let k=0;k<3;k++)pixels.data[at+k]=Math.round(rgb[k]);pixels.data[at+3]=255;}c.putImageData(pixels,0,0);return blob(canvas);};
+  const [outer,inner]=root.querySelectorAll('img');outer.src=await render(210,1,17);inner.src=await render(160,ratio,17-91.5);
+  window.refresh=async()=>{outer.src=await render(210,1,31);await outer.decode();};
+  const handle=root.querySelector('#circle-drag'),slider=root.querySelector('#captcha_slide_button'),track=handle.parentElement;let start=0;
+  handle.addEventListener('dragstart',event=>{start=event.clientX;window.dragTrusted=event.isTrusted;});
+  handle.addEventListener('drag',event=>{counts.drags++;const span=track.offsetWidth-slider.offsetWidth,dx=Math.max(0,Math.min(span,event.clientX-start)),fraction=dx/span;moves.push(dx);handle.style.transform=`translateX(${dx}px)`;outer.style.transform=`rotate(${-180*fraction}deg)`;inner.style.transform=`rotate(${180*fraction}deg)`;if(mode==='whirl-refresh'&&counts.drags===2)window.refresh();});
+  handle.addEventListener('dragend',()=>{counts.ends++;window.fixtureAccepted=Math.abs(moves.at(-1)/(track.offsetWidth-slider.offsetWidth)*360-91.5)<1.5;if(fixtureAccepted&&mode==='whirl-pass')showSuccess();});
+}else{
+  root.innerHTML='<p>Drag the puzzle piece into place</p><div id="scene"><img id="captcha-verify-image" draggable="false"><div id="piece" draggable="true"><img draggable="false"></div></div><div class="track"><div draggable="true"><button type="button" id="captcha_slide_button" class="secsdk-captcha-drag-icon" disabled>Drag</button></div></div>';
+  root.querySelector('#captcha-verify-image').src=original;
+  const pieceCanvas=document.createElement('canvas');pieceCanvas.width=70;pieceCanvas.height=70;pieceCanvas.getContext('2d').drawImage(background,160,68,70,70,0,0,70,70);root.querySelector('#piece img').src=await blob(pieceCanvas);
+  const piece=root.querySelector('#piece');let start=0;
+  piece.addEventListener('dragstart',event=>{start=event.clientX;window.dragTrusted=event.isTrusted;event.dataTransfer.setDragImage(document.createElement('img'),0,0);});
+  piece.addEventListener('drag',event=>{counts.drags++;const distance=Math.max(0,Math.min(298,event.clientX-start));moves.push(distance);piece.style.transform=`translateX(${distance}px)`;if(mode==='slide-refresh'&&counts.drags===2)window.refresh();});
+  piece.addEventListener('dragend',()=>{counts.ends++;window.fixtureAccepted=Math.abs(moves.at(-1)-160)<1;if(fixtureAccepted&&mode==='slide-pass')showSuccess();});
+}
+await Promise.all([...root.querySelectorAll('img')].map(image=>image.decode()));window.ready=true;
+</script>
