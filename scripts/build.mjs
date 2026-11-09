@@ -17,7 +17,7 @@ await build({
   minify: false, legalComments: 'eof', logLevel: 'info',
 });
 await build({ absWorkingDir: root, entryPoints: ['src/background.js'], outdir: dist, bundle: true, format: target === 'firefox' ? 'iife' : 'esm', platform: 'browser', target: target === 'firefox' ? 'firefox140' : 'chrome116', logLevel: 'info' });
-await build({ absWorkingDir: root, entryPoints: ['src/content.js', 'src/automation.js'], outdir: dist, bundle: true, format: 'iife', target: 'chrome116', logLevel: 'info' });
+await build({ absWorkingDir: root, entryPoints: ['src/content.js', 'src/automation.js', 'src/challenge-content.js'], outdir: dist, bundle: true, format: 'iife', target: 'chrome116', logLevel: 'info' });
 await mkdir(join(dist, 'vendor/core'), { recursive: true });
 await mkdir(join(dist, 'vendor/lang'), { recursive: true });
 await cp(join(root, 'node_modules/tesseract.js/dist/worker.min.js'), join(dist, 'vendor/worker.min.js'));

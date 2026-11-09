@@ -20,9 +20,9 @@ This is an independent implementation, not a copy of CaptchaSonic's private solv
 | Advertised provider / feature | Implemented here | Still missing |
 | --- | --- | --- |
 | Universal OCR | Local general-purpose text recognition | Reliable reading of every distorted CAPTCHA / handwriting |
-| BLS / text CAPTCHA | Text-image detection and configurable OCR rules | Verified BLS-specific live integration |
+| BLS / text CAPTCHA | Bundled OCR, local vision code reading, configurable field rules | Reliable reading of every distortion; verified BLS integration |
 | PopularCaptcha image / grid / bbox / multi | Generic image, grid, point, and box tools | Public stable widget contract, provider adapter, live acceptance |
-| reCAPTCHA v2 | Widget detection and generic grid assistance | Full provider workflow, dynamic replacement tiles, live acceptance |
+| reCAPTCHA v2 | Grid adapter, sprite capture, dynamic replacements, multi-round verification; one successful public-demo session | Reliable acceptance across sites; audio / non-grid modes |
 | reCAPTCHA v3 / invisible | Script/widget detection | Provider-issued score and signed token generation |
 | AWS WAF | Widget detection and generic image comparison | AWS challenge protocol and live acceptance |
 | Geetest v3 / v4 | Widget detection, generic piece and point tools | Scrambled image reconstruction, protocol-specific dragging, live acceptance |
@@ -32,7 +32,7 @@ This is an independent implementation, not a copy of CaptchaSonic's private solv
 | TikTok | Widget detection, piece matching and reference-based rotation | Native challenge integration, live acceptance |
 | Prosopo / Procaptcha | Widget detection and generic SHA-256 primitive | Actual provider proof-of-work protocol and signed tokens |
 | Binance | Widget detection and generic image tools | Provider-specific workflow and live acceptance |
-| hCaptcha | Widget detection and generic image tools | Live provider integration |
+| hCaptcha | Image-grid adapter and fixture-tested selections / verification | Live acceptance; drawing, motion, spatial and other non-grid modes |
 | Cloudflare Turnstile | Widget/script detection | Provider-managed verification tokens |
 
 A JavaScript extension dispatches untrusted DOM events. Widgets that require trusted browser input can reject them. Cross-origin image canvases may be unreadable; region capture and browser screenshot integration supply visible pixels instead. Capturing a challenge does not authorize submitting a job application.
@@ -50,3 +50,7 @@ The eight user-reported post-submit outcomes remain unconfirmed. This build did 
 - [Qwen3-VL](https://github.com/QwenLM/Qwen3-VL): image grounding model and coordinate examples.
 - [Firefox background scripts](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/background): MV3 background documents.
 - [Chrome proxy settings](https://developer.chrome.com/docs/extensions/reference/api/proxy) and [Firefox proxy settings](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/proxy/settings).
+
+## November 8, 2026 follow-up
+
+The user deferred iCIMS work. Development focused on their common CAPTCHA examples. Both supplied grid examples matched the expected selections in the final image benchmark. A real Google reCAPTCHA demo reached its checked state after 11 recognition rounds; earlier runs exposed a sliding-table bug and one run reached its time limit. This single observed success is not a success-rate estimate. See [2.1 verification](verification-2.1.md).

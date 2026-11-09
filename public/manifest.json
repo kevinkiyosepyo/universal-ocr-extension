@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Universal OCR",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "minimum_chrome_version": "116",
   "description": "Local text OCR, image analysis, and optional site rules with a self-hosted solver.",
   "permissions": [
@@ -38,7 +38,8 @@
     "extension_pages": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self' http://127.0.0.1:* http://localhost:* https:; img-src 'self' data: blob:; style-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
   },
   "optional_permissions": [
-    "proxy"
+    "proxy",
+    "webNavigation"
   ],
   "optional_host_permissions": [
     "http://*/*",

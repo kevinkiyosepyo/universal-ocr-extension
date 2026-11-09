@@ -36,7 +36,7 @@ if (!globalThis.__universalAutomation) {
     target.dispatchEvent(new MouseEvent(type, { bubbles: true, composed: true, clientX: x, clientY: y, buttons: down ? 1 : 0, button: 0 }));
   }
   async function apply(rule, solution, image, onAction) {
-    if (rule.type === 'ocr') { if (!solution.text?.trim()) throw new Error('No text recognized.'); const field = get(rule.inputSelector); if (!field) throw new Error('Text field is unavailable.'); onAction(); setText(field, solution.text); }
+    if (['ocr', 'captcha-text'].includes(rule.type)) { if (!solution.text?.trim()) throw new Error('No text recognized.'); const field = get(rule.inputSelector); if (!field) throw new Error('Text field is unavailable.'); onAction(); setText(field, solution.text); }
     if (rule.type === 'grid') {
       const tiles = [...document.querySelectorAll(rule.tileSelector)];
       if (tiles.length !== rule.rows * rule.columns) throw new Error('Tile count does not match the configured grid.');

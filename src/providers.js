@@ -38,12 +38,12 @@ export function validateRule(value) {
     if ((required && !entry) || entry.length > 500) throw new Error(`Enter a valid ${name}.`);
     return entry;
   };
-  const type = ['ocr', 'grid', 'points', 'slider'].includes(value.type) ? value.type : 'ocr';
+  const type = ['ocr', 'captcha-text', 'grid', 'points', 'slider'].includes(value.type) ? value.type : 'ocr';
   const number = (name, fallback, min, max, integer = false) => { const n = Number(value[name] ?? fallback); if (!Number.isFinite(n) || n < min || n > max || (integer && !Number.isInteger(n))) throw new Error(`Invalid ${name}.`); return n; };
   return {
     id: typeof value.id === 'string' && /^[a-z0-9-]{1,64}$/i.test(value.id) ? value.id : crypto.randomUUID(),
     name: String(value.name || url.hostname).slice(0, 100), origin: url.origin, enabled: value.enabled === true, type,
-    imageSelector: selector('imageSelector'), inputSelector: selector('inputSelector', type === 'ocr'),
+    imageSelector: selector('imageSelector'), inputSelector: selector('inputSelector', ['ocr', 'captcha-text'].includes(type)),
     tileSelector: selector('tileSelector', type === 'grid'), handleSelector: selector('handleSelector', type === 'slider'),
     referenceSelector: selector('referenceSelector', type === 'slider'), submitSelector: selector('submitSelector', value.autoSubmit === true),
     successSelector: selector('successSelector', false), prompt: String(value.prompt || '').slice(0, 2000),

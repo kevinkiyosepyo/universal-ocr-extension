@@ -1,6 +1,6 @@
 {
   "name": "universal-ocr-extension",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Local OCR, visual recognition tools, and opt-in browser automation",
   "type": "module",
@@ -23,7 +23,11 @@
     "test:automation": "node scripts/smoke-automation.mjs",
     "test:vision": "node scripts/smoke-vision.mjs",
     "test:firefox": "node scripts/smoke-firefox.mjs",
-    "lint:firefox": "web-ext lint --source-dir dist-firefox"
+    "lint:firefox": "web-ext lint --source-dir dist-firefox",
+    "start:all": "node scripts/start-local.mjs",
+    "setup:local": "node scripts/start-local.mjs --setup",
+    "test:challenges": "node scripts/smoke-challenges.mjs",
+    "benchmark": "node scripts/benchmark.mjs"
   },
   "dependencies": {
     "@tesseract.js-data/chi_sim": "1.0.0",

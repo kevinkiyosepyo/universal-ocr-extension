@@ -1,4 +1,4 @@
-export const TASK_TYPES = Object.freeze(['ocr', 'grid', 'points', 'bbox', 'slider', 'rotate', 'pow']);
+export const TASK_TYPES = Object.freeze(['ocr', 'captcha-text', 'grid', 'points', 'bbox', 'slider', 'rotate', 'pow']);
 export const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
 export class TaskError extends Error {
@@ -41,6 +41,7 @@ export function validateTask(input) {
   if (task.type === 'grid') {
     if (![input.rows, input.columns].every((n) => Number.isInteger(n) && n >= 1 && n <= 6) || input.rows * input.columns > 36) throw new TaskError('INVALID_TASK', 'Grid dimensions must be between 1 and 6 rows and columns.');
     task.rows = input.rows; task.columns = input.columns;
+    task.layout = ['tiles', 'scene'].includes(input.layout) ? input.layout : 'tiles';
   }
   if (task.type === 'ocr') task.settings = input.settings && typeof input.settings === 'object' ? input.settings : {};
   return task;
@@ -49,6 +50,10 @@ export function validateTask(input) {
 export function validateSolution(task, result) {
   if (!result || typeof result !== 'object') throw new TaskError('INVALID_SOLUTION', 'The recognition engine returned no usable result.');
   const confidence = Number.isFinite(result.confidence) ? Math.min(1, Math.max(0, result.confidence)) : 0;
+  if (task.type === 'captcha-text') {
+    if (typeof result.text !== 'string' || result.text.length > 128 || /[\r\n]/.test(result.text)) throw new TaskError('INVALID_SOLUTION', 'The model did not return a single short text code.');
+    return { text: result.text.trim(), confidence };
+  }
   if (task.type === 'grid') {
     if (!Array.isArray(result.selected) || !result.selected.every((n) => Number.isInteger(n) && n >= 0 && n < task.rows * task.columns)) throw new TaskError('INVALID_SOLUTION', 'The model returned an invalid grid index.');
     return { selected: [...new Set(result.selected)].sort((a, b) => a - b), confidence };

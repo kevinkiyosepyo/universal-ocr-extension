@@ -4,3 +4,5 @@
 :root{--surface:#fff;--accent:var(--green)}
 :root[data-theme=dark]{color-scheme:dark;--ink:#e3ece5;--muted:#a1b0a6;--line:#33483c;--paper:#131f19;--surface:#1b2c22;--green:#78c9a4;--green-dark:#93dbb9;--tint:#263b2e;--error:#ffab99;--accent:#78c9a4}
 [data-theme=dark] .primary{color:#11281e}[data-theme=dark] .secondary,[data-theme=dark] .panel,[data-theme=dark] .app-header,[data-theme=dark] select,[data-theme=dark] input,[data-theme=dark] kbd{background:var(--surface);color:var(--ink);border-color:var(--line)}[data-theme=dark] .dropzone,[data-theme=dark] .scan-icon{background:#17271d;border-color:var(--line)}[data-theme=dark] #result{color:var(--ink)}[data-theme=dark] .local-tag,[data-theme=dark] .local-note strong,[data-theme=dark] .help p,[data-theme=dark] .help li{color:var(--muted)}[data-theme=dark] .panel-heading,[data-theme=dark] .result-actions{border-color:var(--line)}[data-theme=dark] .control nav a[aria-current=page]{background:#78c9a4;color:#13251a}
+
+.verify-option { display:flex; gap:8px; margin:10px 0; font-size:12px; }

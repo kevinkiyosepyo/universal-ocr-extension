@@ -1,0 +1,30 @@
+<!doctype html><meta charset="utf-8"><title>Provider workflow fixture</title>
+<style>body{font:16px Arial;margin:16px}table{border-spacing:0}td{width:80px;height:80px;padding:0;overflow:hidden;position:relative}.tile-wrapper{width:80px;height:80px;overflow:hidden;position:relative}img{position:absolute;pointer-events:none}.rc-imageselect-tileselected .tile-wrapper,.rc-imageselect-dynamic-selected .tile-wrapper{transform:scale(.9)}.task-grid{display:grid;grid-template-columns:repeat(3,80px)}.task-image{width:80px;height:80px;background-size:cover}.selected{outline:3px solid blue}button{margin:12px 0;padding:10px}</style>
+<div id="recaptcha-anchor" aria-checked="false"></div><div id="checkbox" aria-checked="false"></div>
+<div class="rc-imageselect-desc-wrapper"></div><div class="rc-imageselect-target"></div><div class="challenge-container"><div class="prompt-text"></div><div class="task-grid"></div></div><form id="guard"><button id="application" type="submit">Submit application</button></form><button id="recaptcha-verify-button" type="button">Verify</button><button class="button-submit" type="button">Verify</button>
+<script>
+const mode=new URL(location.href).searchParams.get('mode')||'static';
+const n=mode==='scene'?4:3; window.counts={clicks:[],verify:0,submit:0};
+const expected=n===4?[0,4]:[1,5,6]; let round=0;
+const solid=(red)=>{const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle=red?'#ef2020':'#eeeeee';x.fillRect(0,0,128,128);return c.toDataURL()};
+function sprite(){const c=document.createElement('canvas');c.width=c.height=n*128;const x=c.getContext('2d');for(let i=0;i<n*n;i++){x.fillStyle=expected.includes(i)?'#ef2020':'#eeeeee';x.fillRect(i%n*128,Math.floor(i/n)*128,128,128)}return c.toDataURL()}
+function build(){
+ const dynamic=mode==='dynamic'; const hc=mode==='hcaptcha';
+ document.querySelector('.rc-imageselect-desc-wrapper').textContent=dynamic?'Select all images with a bus. Click verify once there are none left.':n===4?'Select all squares with traffic lights':'Select all images with a bus.';
+ document.querySelector('.prompt-text').textContent='Select every image containing a bus.';
+ document.querySelector('.challenge-container').hidden=!hc;document.querySelector('.rc-imageselect-target').hidden=hc; document.querySelector('.rc-imageselect-desc-wrapper').hidden=hc;
+ document.querySelector('.button-submit').hidden=!hc; document.querySelector('#recaptcha-verify-button').hidden=hc;
+ const base=sprite(); const table=document.createElement('table');const grid=document.querySelector('.task-grid');grid.replaceChildren();
+ for(let y=0;y<n;y++){const row=document.createElement('tr');for(let x=0;x<n;x++){const i=y*n+x;let tile;
+ if(hc){tile=document.createElement('div');tile.className='task-image';tile.style.backgroundImage=`url('${solid(expected.includes(i))}')`;tile.setAttribute('role','button');tile.setAttribute('aria-pressed','false');grid.append(tile)}
+ else {tile=document.createElement('td');tile.className='rc-imageselect-tile';tile.innerHTML=`<div class="tile-wrapper"><img class="rc-image-tile-${n}${n}" style="width:${n*80}px;height:${n*80}px;left:${-x*80}px;top:${-y*80}px" src="${base}"></div>`;row.append(tile)}
+ tile.onclick=()=>{counts.clicks.push(i);if(hc){tile.classList.toggle('selected');tile.setAttribute('aria-pressed',String(tile.classList.contains('selected')))}else{tile.classList.toggle(dynamic?'rc-imageselect-dynamic-selected':'rc-imageselect-tileselected');if(dynamic)setTimeout(()=>{const img=tile.querySelector('img');img.className='rc-image-tile-11';img.style.cssText='width:80px;height:80px;left:0;top:0';img.src=solid(false);tile.classList.remove('rc-imageselect-dynamic-selected')},500)}};
+ }table.append(row)} document.querySelector('.rc-imageselect-target').replaceChildren(table);
+}
+window.change=()=>{const first=document.querySelector('img');first.className='rc-image-tile-11';first.style.cssText='width:80px;height:80px;left:0;top:0';first.src=solid(true)};
+window.finish=()=>{counts.verify++;if(['multi','transition'].includes(mode)&&round++===0){const old=document.querySelector('table').cloneNode(true);expected.splice(0,expected.length,2);build();if(mode==='transition'){const root=document.querySelector('.rc-imageselect-target');root.style.cssText='position:relative;overflow:hidden;width:240px;height:240px';const next=root.querySelector('table');old.style.cssText='position:absolute;left:-50px';next.style.cssText='position:absolute;left:190px';root.append(old);setTimeout(()=>{old.remove();next.style.cssText=''},700)}return}document.querySelector('#recaptcha-anchor').setAttribute('aria-checked','true');document.querySelector('#checkbox').setAttribute('aria-checked','true');document.querySelector('.rc-imageselect-target').hidden=true;document.querySelector('.challenge-container').hidden=true};
+document.querySelector('#guard').onsubmit=e=>{e.preventDefault();counts.submit++};
+for(const button of document.querySelectorAll('#recaptcha-verify-button,.button-submit'))button.onclick=finish;
+build();
+if(mode==='guard'){const button=document.querySelector('#recaptcha-verify-button');button.type='submit';button.onclick=null;document.querySelector('#guard').append(button)}
+</script>

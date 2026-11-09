@@ -15,7 +15,7 @@ async function execute({ task, config }) {
     return matchTemplate(await pixels(task.image, 0), await pixels(task.reference, 0));
   }
   if (task.type === 'rotate') return matchRotation(await pixels(task.image, 600), await pixels(task.reference, 600));
-  if (['grid', 'points', 'bbox'].includes(task.type)) return inferVision(task, config);
+  if (['grid', 'points', 'bbox', 'captcha-text'].includes(task.type)) return inferVision(task, config);
   const settings = sanitizeSettings(task.settings);
   const decoded = await sharp(Buffer.from(task.image, 'base64'), { limitInputPixels: 20_000_000 }).rotate().resize({ width: 4096, height: 4096, fit: 'inside', withoutEnlargement: true }).flatten({ background: '#fff' }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   let border = 0, borderCount = 0, low = 255, high = 0;

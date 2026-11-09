@@ -1,6 +1,7 @@
 import { api, documentTarget } from './platform.js';
 import { automationRoute, syncRules } from './automation-background.js';
 import { proxyRoute } from './proxy.js';
+import { challengeRoute } from './challenge-background.js';
 const CAPTURE_PREFIX = 'capture:';
 const CAPTURE_TTL = 10 * 60 * 1000;
 const uiSender = (sender) => sender.id === api.runtime.id && sender.url?.startsWith(api.runtime.getURL(''));
@@ -86,6 +87,7 @@ async function regionMessage(message, sender) {
 }
 
 async function route(message, sender) {
+  if (message?.type?.startsWith('CHALLENGE_')) return challengeRoute(message, sender, uiSender(sender));
   if (['REGION_DONE', 'REGION_CANCEL'].includes(message?.type)) return regionMessage(message, sender);
   if (['RULES_FOR_PAGE', 'AUTO_SOLVE', 'AUTO_REPORT', 'SAVE_RULE', 'DELETE_RULE', 'SET_AUTOMATION', 'SAVE_SERVICE', 'SERVICE_HEALTH', 'SOLVE_TASK', 'CANCEL_TASK', 'CLEAR_ACTIVITY', 'SCAN_PAGE'].includes(message?.type)) return automationRoute(message, sender, uiSender(sender));
   if (!uiSender(sender)) throw new Error('This action must be started from Universal OCR.');

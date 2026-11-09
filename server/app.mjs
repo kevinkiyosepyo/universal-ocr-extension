@@ -45,7 +45,7 @@ export function createSolverServer(config) {
           const value = await result.json();
           vision.available = result.ok && value.models?.some((model) => model.name === config.model);
         } catch { /* OCR and deterministic engines remain available. */ }
-        reply(response, 200, { status: 'ok', version: '2.0.0', vision, tasks: TASK_TYPES, queued: queue.pending.length, running: queue.active }); return;
+        reply(response, 200, { status: 'ok', version: '2.1.0', vision, tasks: TASK_TYPES, queued: queue.pending.length, running: queue.active }); return;
       }
       if (request.method === 'GET' && url.pathname === '/v1/metrics') { reply(response, 200, queue.metrics); return; }
       if (request.method === 'POST' && url.pathname === '/v1/tasks') {
