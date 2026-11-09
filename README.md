@@ -1,19 +1,44 @@
 # Universal OCR
 
-An independent, private browser extension and local recognition service. Read text from images and page regions, analyze visual challenges, and configure automation for specific sites. No paid CAPTCHA subscription is required for the implemented local tools.
+An independent browser extension and local recognition service. Read text from images and page regions, analyze visual challenges, and configure automation for specific sites. No paid CAPTCHA subscription is required for the implemented local tools.
 
 ![Universal OCR workbench](docs/workbench.png)
 
-Version 2.1 adds an image-grid adapter for reCAPTCHA v2 and hCaptcha, including replacement tiles, multi-round challenges, and optional verification. One live Google demo session completed successfully. This is not full CaptchaSonic parity: other proprietary challenge modes and provider-issued scores are not implemented. See the [capability matrix](docs/COMPATIBILITY.md) and [measured results](docs/verification-2.1.md).
+Version 2.1 adds image-grid assistance for reCAPTCHA v2, including replacement tiles, multi-round challenges, and optional verification. One live Google demo session completed successfully. The experimental hCaptcha image-grid adapter has local fixture coverage only; live acceptance is unverified. This is not full CaptchaSonic parity: other proprietary challenge modes and provider-issued scores are not implemented. See the [capability matrix](docs/COMPATIBILITY.md) and [measured results](docs/verification-2.1.md).
 
 The referenced [CaptchaSonic repository](https://github.com/Captcha-Sonic/CaptchaSonic-Extension) contains documentation and release assets, but no extension source at the inspected commit. This project includes none of its code, binaries, artwork, or branding.
+
+## CAPTCHA support status
+
+**This project does not support all CAPTCHA types advertised by CaptchaSonic.** The table below describes released version **2.1.0**. Widget detection and generic image-analysis tools do not establish a working provider integration. **Not integrated** means automatic completion of that provider is not implemented here; **partial** means only the stated subset is implemented or verified.
+
+| CAPTCHA type / feature | Status in this project | What works and what is missing |
+| --- | --- | --- |
+| PopularCaptcha (Image / Grid / BBox / Multi) | **Not integrated** | Generic image, grid, point, and box tools exist. A PopularCaptcha adapter and live acceptance are missing. |
+| reCAPTCHA v2 (Visible & Invisible) | **Partial — visible image grids** | Grid capture, replacement tiles, multiple rounds, and optional Verify are implemented. One live Google demo completed. Invisible flows are not verified; audio and other non-grid modes are missing. |
+| reCAPTCHA v3 | **Not implemented** | Detection only. No provider-issued score or token generation. |
+| AWS WAF CAPTCHA | **Not integrated** | Detection and generic image tools only. The AWS challenge workflow and live acceptance are missing. |
+| Geetest v3 (Slide / Click) | **Not integrated** | Generic piece matching and point tools only. Image reconstruction, provider-specific interactions, and live acceptance are missing. |
+| Geetest v4 (Slide) | **Not integrated** | Generic piece matching only. The Geetest v4 workflow and live acceptance are missing. |
+| BLS OCR / Text CAPTCHA | **Partial — text recognition only** | Ordinary OCR and local distorted-code recognition work on tested examples. No verified BLS workflow; noisy or tiny codes can be misread. |
+| mtCaptcha | **Not integrated** | Detection and generic OCR only. Automatic widget completion is missing. |
+| CaptchaFox | **Not integrated** | Detection only. Automatic widget completion is missing. |
+| Tencent CAPTCHA | **Not integrated** | Detection and generic piece/point tools only. The provider workflow and live acceptance are missing. |
+| TikTok CAPTCHA | **Not integrated** | Detection, generic piece matching, and reference-based rotation tools exist. TikTok slide, circle, and click workflows have not been integrated or verified live in this release. |
+| Prosopo / Procaptcha | **Not integrated** | Detection and a generic SHA-256 primitive only. The actual provider proof-of-work protocol and signed tokens are missing. |
+| Binance CAPTCHA | **Not integrated** | Detection and generic image tools only. The provider workflow and live acceptance are missing. |
+| Universal OCR | **Working — general text** | Offline text recognition in seven languages, image uploads, region capture, and editable results. Distorted CAPTCHA text and handwriting are not universally reliable. |
+
+**Additional adapter:** hCaptcha image grids are implemented and tested with local fixtures, but live acceptance has not been verified. Drawing, motion, spatial, and other non-grid challenges are not supported.
+
+**Measured limits:** the one successful live reCAPTCHA session required 11 recognition rounds and about 150 seconds. Five graded recognition samples matched their expected answers in the final benchmark, taking about 8–10 seconds each. These are small-sample results, not a general success-rate or speed guarantee. See the [detailed capability matrix](docs/COMPATIBILITY.md) and [verification evidence](docs/verification-2.1.md).
 
 ## Install the extension
 
 1. Download and extract the v2.1.0 ZIP for your browser from [Releases](https://github.com/kevinkiyosepyo/universal-ocr-extension/releases/tag/v2.1.0).
 2. **Chrome / Brave / Chromium:** open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
 3. **Edge:** use `edge://extensions` and the Edge package with the same steps.
-4. **Firefox 140+:** open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select the extracted `manifest.json`. This unsigned private build must be reloaded after restarting Firefox; permanent installation requires Mozilla signing.
+4. **Firefox 140+:** open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select the extracted `manifest.json`. This unsigned build must be reloaded after restarting Firefox; permanent installation requires Mozilla signing.
 5. Pin **Universal OCR**. Its popup opens text capture, provider detection, and the visual tools / site-rule dashboard.
 
 Chromium requires Chrome 116 APIs or newer. Edge shares the Chromium implementation; a separate Edge runtime has not been tested. Firefox text recognition has been tested in the real browser. Mobile browser installation and touch automation have not been validated.
