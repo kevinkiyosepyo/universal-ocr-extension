@@ -34,12 +34,15 @@ export class SolverClient {
     try {
       const created = await this.request('v1/tasks', { method: 'POST', body: { ...task, requestId: crypto.randomUUID() }, signal: controller.signal });
       id = created.id;
+      let status = created, interval = 60;
       for (;;) {
-        const status = await this.request(`v1/tasks/${id}`, { signal: controller.signal });
         onProgress(status);
+        if (controller.signal.aborted) throw controller.signal.reason;
         if (status.state === 'succeeded') return status.solution;
         if (['failed', 'cancelled'].includes(status.state)) throw new TaskError(status.error?.code || 'CANCELLED', status.error?.message || 'Task cancelled.', status.error?.retryable);
-        await wait(400, controller.signal);
+        await wait(interval, controller.signal);
+        interval = Math.min(300, Math.round(interval * 1.5));
+        status = await this.request(`v1/tasks/${id}`, { signal: controller.signal });
       }
     } finally {
       clearTimeout(timer); signal?.removeEventListener('abort', abort);

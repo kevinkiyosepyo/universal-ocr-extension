@@ -5,6 +5,7 @@ release binaries, artwork, or branding is included.
 
 - webextension-polyfill 0.12.0 — Mozilla Public License 2.0 — https://github.com/mozilla/webextension-polyfill
 - Sharp 0.35.5 (companion service only) — Apache License 2.0; libvips notices supplied by its packages — https://github.com/lovell/sharp
+- GLM-OCR (optional separate model download) — MIT model license — https://huggingface.co/zai-org/GLM-OCR
 - Qwen3-VL-4B-Instruct (optional separate model download) — Apache License 2.0 — https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct
 - Tesseract.js 7.0.0 — Apache License 2.0 — https://github.com/naptha/tesseract.js
 - Tesseract.js Core 7.0.0 (Tesseract and Leptonica WebAssembly engine) — Apache License 2.0, with embedded component notices — https://github.com/naptha/tesseract.js-core
@@ -22,4 +23,4 @@ shipped as part of the extension. Their licenses are included in their npm
 packages. Exact dependency versions and integrity hashes are recorded in
 `package-lock.json`.
 
-The vision model is downloaded separately by Ollama and is not included in extension ZIPs. The local service uses Sharp; its npm distribution supplies the image-library licenses. No image assets from job application pages are bundled.
+The vision and text models are downloaded separately by Ollama and are not included in extension ZIPs. The local service uses Sharp; its npm distribution supplies the image-library licenses. No image assets from job application pages are bundled.

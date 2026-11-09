@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Provider-managed widget fixture</title>
+<style>body{font:16px Arial}.prosopo-checkbox,.cf-checkbox-box{width:280px;min-height:32px;padding:8px;border:1px solid #888}button{margin:16px}</style>
+<form><div id="widget"></div><button type="submit">Submit application</button></form>
+<script>
+const provider=new URL(location.href).searchParams.get('provider');
+window.counts={starts:0,submit:0};
+const host=document.querySelector('#widget');let checkbox;
+if(provider==='prosopo'){
+ host.className='prosopo-checkbox';const root=host.attachShadow({mode:'open'});
+ root.innerHTML='<style>input{width:24px;height:24px}</style><label><input type="checkbox">I am human</label>';checkbox=root.querySelector('input');
+}else{
+ host.className='cf-checkbox-box';host.setAttribute('role','checkbox');host.setAttribute('aria-checked','false');host.textContent='I am human';checkbox=host;
+}
+const field=document.createElement('input');field.type='hidden';field.name=provider==='prosopo'?'procaptcha-response':'cf-captcha-response';document.querySelector('form').append(field);
+window.trustedPointer=false;checkbox.onpointerdown=e=>{trustedPointer=e.isTrusted};
+checkbox.onclick=()=>{counts.starts++;checkbox.setAttribute('aria-checked','true');setTimeout(()=>{field.value='fixture-response'},1200)};
+document.querySelector('form').onsubmit=e=>{e.preventDefault();counts.submit++};
+</script>

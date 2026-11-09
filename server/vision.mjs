@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import { TaskError, validateSolution, endpointURL } from '../shared/protocol.js';
+import { locateObjectPair } from './object-pair.mjs';
 
 const coordinate = { type: 'integer', minimum: 0, maximum: 1000 };
 const confidence = { type: 'integer', minimum: 0, maximum: 100 };
@@ -13,6 +14,11 @@ const schemas = {
 export async function inferVision(task, config) {
   const endpoint = endpointURL(config.ollamaEndpoint);
   let image = await sharp(Buffer.from(task.image, 'base64'), { limitInputPixels: 20_000_000 }).rotate().resize({ width: 1400, height: 1400, fit: 'inside', withoutEnlargement: true }).flatten({ background: '#fff' }).png().toBuffer();
+  if (task.type === 'points' && task.strategy === 'horizontal-pair') {
+    const { data, info } = await sharp(image).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const pair = locateObjectPair({ data, width: info.width, height: info.height });
+    if (pair) return validateSolution(task, pair);
+  }
   if (task.type === 'grid') {
     const { width, height } = await sharp(image).metadata();
     const cw = width / task.columns, ch = height / task.rows;
@@ -26,6 +32,7 @@ export async function inferVision(task, config) {
   }
   let description;
   if (task.type === 'captcha-text') description = 'Transcribe the single distorted text code in this image exactly, preserving case. Ignore crossing lines and background noise. Do not guess missing characters. Return an empty text and confidence 0 if unreadable. Do not add spaces, explanations or labels.';
+  if (task.type === 'captcha-text' && task.minLength) description += ` The provider reported that the previous reading omitted characters. Examine every visible glyph from left to right, including overlapping letters and letters crossing a colored patch. The code has at least ${task.minLength} characters. If you cannot read that many, return empty text and confidence 0.`;
   if (task.type === 'grid') description = `The image is a ${task.rows}-row by ${task.columns}-column grid. Each cell has a numeric label in its top-left corner. Return those exact labels for matching cells, not a list of positions among the matching objects. Labels run in row-major order (top left is 0). Only select cells matching the instruction. An empty array is valid.`;
   if (task.type === 'grid' && task.layout === 'scene') description += ' This is one continuous photograph divided into squares. Select every square containing any visible part of the requested object, including partial objects crossing cell boundaries. Do not select only the center square.';
   if (task.type === 'points') description = 'Return center points of the matching objects, in the order requested. Coordinates are integers normalized 0 to 1000 relative to the entire image, with the origin at the top left.';

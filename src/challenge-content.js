@@ -1,13 +1,14 @@
 import { api } from './platform.js';
 import { snapshot, captureGrid, selected, clickTile, verifyChallenge, verifiedWidget, rejectedWidget } from './challenge-dom.js';
 import { gridChanges } from './challenge-common.js';
+import { widgetSnapshot, captureWidget, applyText, applyPuzzle, puzzleDrag, widgetVerified, widgetFailure, managedSnapshot, startManaged, textFeedback } from './challenge-widgets.js';
 
 if (globalThis.__universalChallenge) {
   void globalThis.__universalChallenge();
 } else {
   const nonce = crypto.randomUUID();
   let session, busy = false, timer, stopped = true, generation = 0, hud, status;
-  let lastFingerprint, lastActionAt = 0, lastVerified, lastStable, stableAt = 0, staleCount = 0;
+  let lastFingerprint, lastActionAt = 0, lastVerified, lastStable, stableAt = 0, staleCount = 0, managed, textAttempt, widgetPendingAt = 0;
   const cache = new Map();
   const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
   const send = async (type, payload = {}) => {
@@ -29,9 +30,9 @@ if (globalThis.__universalChallenge) {
       const sheet = new CSSStyleSheet(); sheet.replaceSync(style.textContent); shadow.adoptedStyleSheets = [sheet];
       shadow.append(box); document.documentElement.append(hud);
     }
-    status.textContent = value.detail || value.state;
+    status.textContent = (value.detail || value.state) + (value.preview ? '\n' + value.preview : '');
   }
-  async function report(state, detail) { const value = await send('CHALLENGE_REPORT', { state, detail }); show(value); return value; }
+  async function report(state, detail, preview) { const value = await send('CHALLENGE_REPORT', { state, detail, preview }); show(value); return value; }
   async function current(expected) {
     if (stopped || generation !== expected || document.hidden) return false;
     const value = await send('CHALLENGE_POLL');
@@ -43,9 +44,28 @@ if (globalThis.__universalChallenge) {
     busy = true; const expected = generation;
     try {
       if (!await current(expected)) return;
-      if (verifiedWidget()) { await report('widget-verified', 'The widget reports verification complete. This is not an application receipt.'); stopped = true; return; }
+      if (verifiedWidget(session.providers) || widgetVerified(session.providers)) { await report('widget-verified', 'The widget reports verification complete. This is not an application receipt.'); stopped = true; return; }
+      const failed = widgetFailure(session.providers); if (failed) throw new Error(failed);
+      if (widgetPendingAt && Date.now() - widgetPendingAt > 12_000) throw new Error('The provider has not confirmed verification. Review the challenge manually.');
+      // A drag changes the captured pixels. Wait for its receipt instead of
+      // analyzing the moved objects as if they were a brand-new challenge.
+      if (widgetPendingAt && !textAttempt) return;
+      const native = managedSnapshot(session.providers);
+      if (native && !managed) {
+        managed = { startedAt: Date.now(), control: native.control, started: session.autoVerify };
+        if (session.autoVerify) {
+          if (!await current(expected)) return;
+          await startManaged(native, session.browserInput ? pointer => send('CHALLENGE_POINTER', { provider: native.provider, pointer }) : undefined);
+          await report('verifying', `Waiting for ${native.name} to run its own verification and return a response…`);
+        } else await report('review', `The ${native.name} widget is ready. Click its checkbox to start verification.`);
+        return;
+      }
+      if (managed?.started && !lastActionAt && Date.now() - managed.startedAt > 30_000) throw new Error('The provider has not confirmed verification. Complete any challenge it shows manually.');
+      const widget = widgetSnapshot(session.providers);
+      if (widget) { await handleWidget(widget, expected); return; }
       const challenge = snapshot();
       if (!challenge) return;
+      if (!session.providers.includes(challenge.provider)) return;
       const captured = await captureGrid(challenge, url => send('CHALLENGE_FETCH', { url }), cache);
       if (!await current(expected)) return;
       if (lastStable !== captured.fingerprint) { lastStable = captured.fingerprint; stableAt = Date.now(); return; }
@@ -60,7 +80,7 @@ if (globalThis.__universalChallenge) {
         return;
       }
       await report('recognizing', `Reading the ${challenge.rows} × ${challenge.columns} ${challenge.provider === 'hcaptcha' ? 'hCaptcha' : 'reCAPTCHA'} grid…`);
-      const solution = await send('CHALLENGE_SOLVE', { task: { type: 'grid', image: captured.image, rows: challenge.rows, columns: challenge.columns, layout: challenge.layout, prompt: challenge.prompt } });
+      const solution = await send('CHALLENGE_SOLVE', { provider: challenge.provider, task: { type: 'grid', image: captured.image, rows: challenge.rows, columns: challenge.columns, layout: challenge.layout, prompt: challenge.prompt } });
       if (!await current(expected)) return;
       const latest = snapshot();
       if (!latest || (await captureGrid(latest, url => send('CHALLENGE_FETCH', { url }), cache)).fingerprint !== captured.fingerprint) { if (++staleCount >= 4) throw new Error('The challenge keeps changing. Wait for it to settle and start again.'); return; }
@@ -91,8 +111,57 @@ if (globalThis.__universalChallenge) {
       if (!stopped && generation === expected) { await report('failed', error.message).catch(() => {}); stopped = true; show({ detail: error.message }); }
     } finally { busy = false; }
   }
+  async function handleWidget(challenge, expected) {
+    const capture = value => captureWidget(value, url => send('CHALLENGE_FETCH', { url }), cache, rect => send('CHALLENGE_CAPTURE', { provider: value.provider, rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }, viewport: { width: innerWidth, height: innerHeight } }));
+    const captured = await capture(challenge);
+    if (!await current(expected)) return;
+    if (lastStable !== captured.fingerprint) { lastStable = captured.fingerprint; stableAt = Date.now(); return; }
+    // Screen captures are rate-limited and briefly cached. Require a fresh
+    // frame before treating an animated widget as stable.
+    if (Date.now() - stableAt < (challenge.screen ? 900 : 350)) return;
+    let retrying = false;
+    if (lastVerified === captured.fingerprint) {
+      const feedback = textFeedback(challenge);
+      if (feedback === 'short' && textAttempt?.count === 1 && Date.now() - lastActionAt > 800 && challenge.input.value === textAttempt.text) {
+        retrying = true;
+        captured.task.minLength = textAttempt.text.length + 1;
+      } else if (feedback === 'rejected') throw new Error('The provider rejected the recognized code. Complete this challenge manually.');
+      else {
+      if (Date.now() - lastActionAt > 12_000) throw new Error('The provider has not confirmed verification. Review the challenge manually.');
+      return;
+      }
+    }
+    if (lastFingerprint === captured.fingerprint && !retrying) return;
+    await report('recognizing', retrying ? 'The provider reported missing characters. Checking the code once more…' : `Reading the ${challenge.name} challenge…`);
+    const solution = await send('CHALLENGE_SOLVE', { provider: challenge.provider, task: captured.task });
+    if (!await current(expected)) return;
+    const latest = widgetSnapshot(session.providers);
+    if (!latest || latest.provider !== challenge.provider || latest.input !== challenge.input || latest.handle !== challenge.handle || (await capture(latest)).fingerprint !== captured.fingerprint) {
+      if (++staleCount >= 4) throw new Error('The challenge keeps changing. Wait for it to settle and start again.');
+      return;
+    }
+    staleCount = 0;
+    if (solution.confidence < .8) throw new Error('Recognition is uncertain. Complete this challenge manually.');
+    lastFingerprint = captured.fingerprint; lastActionAt = Date.now();
+    if (!session.autoVerify) {
+      if (latest.handle) await report('review', `Puzzle position ready. Move the slider ${Math.round(puzzleDrag(latest, solution).distance)} pixels to the right. Releasing it may complete verification.`);
+      else await report('review', 'Review the recognized code, then enter it in the CAPTCHA field.', solution.text);
+      return;
+    }
+    if (!await current(expected)) return;
+    if (latest.handle) await applyPuzzle(latest, solution, () => current(expected), session.browserInput ? pointer => send('CHALLENGE_POINTER', { provider: latest.provider, pointer }) : undefined);
+    else {
+      applyText(latest, solution, retrying ? textAttempt.text : undefined);
+      textAttempt = { text: solution.text, count: retrying ? 2 : 1 };
+    }
+    if (latest.autoChecks || latest.handle) {
+      widgetPendingAt = Date.now();
+      lastVerified = captured.fingerprint;
+      await report('verifying', 'Answer applied. Waiting for the widget to confirm verification…');
+    } else await report('review', 'Code entered. Review it before continuing; verification is not confirmed.');
+  }
   async function start() {
-    clearInterval(timer); generation++; stopped = false; lastFingerprint = lastVerified = lastStable = null; lastActionAt = stableAt = staleCount = 0; cache.clear();
+    clearInterval(timer); generation++; stopped = false; lastFingerprint = lastVerified = lastStable = managed = textAttempt = null; lastActionAt = stableAt = staleCount = widgetPendingAt = 0; cache.clear();
     try { session = await send('CHALLENGE_HELLO'); show(session); timer = setInterval(tick, 400); void tick(); }
     catch { stopped = true; }
   }

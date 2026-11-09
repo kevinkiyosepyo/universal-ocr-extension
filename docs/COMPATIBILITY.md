@@ -20,22 +20,25 @@ This is an independent implementation, not a copy of CaptchaSonic's private solv
 | Advertised provider / feature | Implemented here | Still missing |
 | --- | --- | --- |
 | Universal OCR | Local general-purpose text recognition | Reliable reading of every distorted CAPTCHA / handwriting |
-| BLS / text CAPTCHA | Bundled OCR, local vision code reading, configurable field rules | Reliable reading of every distortion; verified BLS integration |
-| PopularCaptcha image / grid / bbox / multi | Generic image, grid, point, and box tools | Public stable widget contract, provider adapter, live acceptance |
-| reCAPTCHA v2 | Grid adapter, sprite capture, dynamic replacements, multi-round verification; one successful public-demo session | Reliable acceptance across sites; audio / non-grid modes |
-| reCAPTCHA v3 / invisible | Script/widget detection | Provider-issued score and signed token generation |
-| AWS WAF | Widget detection and generic image comparison | AWS challenge protocol and live acceptance |
-| Geetest v3 / v4 | Widget detection, generic piece and point tools | Scrambled image reconstruction, protocol-specific dragging, live acceptance |
-| mtCaptcha | Widget detection, generic OCR | Live provider integration |
-| CaptchaFox | Widget detection | Live provider integration |
-| Tencent | Widget detection and generic piece/point tools | Provider-specific workflow and live acceptance |
-| TikTok | Widget detection, piece matching and reference-based rotation | Native challenge integration, live acceptance |
-| Prosopo / Procaptcha | Widget detection and generic SHA-256 primitive | Actual provider proof-of-work protocol and signed tokens |
-| Binance | Widget detection and generic image tools | Provider-specific workflow and live acceptance |
+| BLS / text CAPTCHA | Dedicated local code reader, unambiguous field pairing, optional insertion | Distortion errors remain; no verified BLS integration |
+| PopularCaptcha image / grid / bbox / multi | Generic image, grid, point, and box tools | Provider identity / public widget contract, adapter, live acceptance |
+| reCAPTCHA v2 visible | Grid adapter, sprite capture, dynamic replacements, multi-round verification; one successful 2.1 public-demo session | Reliable acceptance across sites; audio / non-grid modes |
+| reCAPTCHA v2 invisible | Detection distinguished from v3; existing adapter can see a visible image grid | Trigger and callback flows remain unverified; no form Submit trigger |
+| reCAPTCHA v3 | Score-script / action-button detection | Site-specific provider score and token workflow; no local token generation |
+| AWS WAF | Widget detection and generic image comparison | Provider adapter and an available test deployment |
+| Geetest v3 | Reconstructed canvas slider adapter, local browser tests | Live acceptance and click / non-slider modes |
+| Geetest v4 | CSS image capture, alpha-aware texture/outline matcher, guarded slider drag | Official demo rejected verification, including browser-input test; non-slider modes |
+| MTCaptcha | Image capture, dedicated OCR, field insertion, one bounded missing-character retry | Fresh public-demo acceptance was not confirmed; model errors remain |
+| CaptchaFox | Native checkbox, cropped canvas capture, object slider, fast foreground path and vision fallback | Official object-slider demo passed; other modes and sites unverified |
+| Tencent | Current sprite-slider DOM adapter, local matching/drag tests; official demo inspected | Live acceptance and non-slider modes |
+| TikTok | Detection and generic image tools | Integration deferred; not tested in this release |
+| Prosopo / Procaptcha | Native proof-of-work flow; official demo passed with a provider response | Image, icon-order, puzzle, and invisible modes unverified |
+| Binance | Widget detection and generic image tools | Provider-specific adapter and a test page |
 | hCaptcha | Image-grid adapter and fixture-tested selections / verification | Live acceptance; drawing, motion, spatial and other non-grid modes |
 | Cloudflare Turnstile | Widget/script detection | Provider-managed verification tokens |
 
-A JavaScript extension dispatches untrusted DOM events. Widgets that require trusted browser input can reject them. Cross-origin image canvases may be unreadable; region capture and browser screenshot integration supply visible pixels instead. Capturing a challenge does not authorize submitting a job application.
+
+The ordinary extension dispatches untrusted DOM events, which some widgets reject. The separate Chromium Browser Input build uses Chrome pointer events for supported top-level sliders and native checkboxes, with explicit session opt-in and a required debugger permission. Procaptcha and CaptchaFox acceptance was verified with that build. Cross-origin image canvases may be unreadable; region capture and browser screenshot integration supply visible pixels instead. Capturing a challenge does not authorize submitting a job application.
 
 ## Job application verification scope
 
@@ -54,3 +57,10 @@ The eight user-reported post-submit outcomes remain unconfirmed. This build did 
 ## November 8, 2026 follow-up
 
 The user deferred iCIMS work. Development focused on their common CAPTCHA examples. Both supplied grid examples matched the expected selections in the final image benchmark. A real Google reCAPTCHA demo reached its checked state after 11 recognition rounds; earlier runs exposed a sliding-table bug and one run reached its time limit. This single observed success is not a success-rate estimate. See [2.1 verification](verification-2.1.md).
+
+
+## Version 2.2 evidence
+
+See [the 2.2 verification report](verification-2.2.md) for successful and unsuccessful runs. A passed fixture tests adapter behavior, not a provider's production acceptance. No claim of universal CAPTCHA coverage is made.
+
+Additional primary references: [MTCaptcha](https://docs.mtcaptcha.com/), [Geetest](https://docs.geetest.com/captcha/guide), [Procaptcha rendering](https://docs.prosopo.io/en/basics/client-side-rendering/), [CaptchaFox widget API](https://docs.captchafox.com/en/widget-api), [invisible reCAPTCHA v2](https://developers.google.com/recaptcha/docs/invisible), and [GLM-OCR](https://ollama.com/library/glm-ocr).

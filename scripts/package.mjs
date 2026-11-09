@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 await mkdir(join(root, 'artifacts'), { recursive: true });
-for (const [targetName, directory] of [['chromium', 'dist'], ['firefox', 'dist-firefox'], ['edge', 'dist-edge']]) {
+for (const [targetName, directory] of [['chromium', 'dist'], ['firefox', 'dist-firefox'], ['edge', 'dist-edge'], ['browser-input', 'dist-browser-input']]) {
 const name = `universal-ocr-${version}-${targetName}.zip`;
 const target = join(root, 'artifacts', name);
 await rm(target, { force: true });

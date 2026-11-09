@@ -7,7 +7,7 @@ import { LANGUAGES } from '../src/settings.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const target = process.argv[2] || 'chromium';
-if (!['chromium', 'firefox', 'edge'].includes(target)) throw new Error('Unknown browser target.');
+if (!['chromium', 'firefox', 'edge', 'browser-input'].includes(target)) throw new Error('Unknown browser target.');
 const dist = join(root, target === 'chromium' ? 'dist' : `dist-${target}`);
 await rm(dist, { recursive: true, force: true });
 await cp(join(root, 'public'), dist, { recursive: true });
@@ -44,6 +44,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" vi
 for (const size of [16, 32, 48, 128]) await sharp(Buffer.from(svg)).resize(size, size).png().toFile(join(dist, `icons/${size}.png`));
 const manifest = JSON.parse(await readFile(join(dist, 'manifest.json'), 'utf8'));
 const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+if (target === 'browser-input') { manifest.permissions.push('debugger'); manifest.name += ' — Browser Input'; }
 if (target === 'firefox') {
   delete manifest.minimum_chrome_version;
   manifest.background = { scripts: ['background.js'] };

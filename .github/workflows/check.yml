@@ -8,7 +8,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,6 +22,8 @@ jobs:
       - run: npm run test:browser
       - run: npm run test:automation
       - run: npm run test:challenges
+      - run: npm run test:widgets
+      - run: npm run test:browser-input
       - run: npm run build:firefox
       - run: npm run lint:firefox
       - run: npm run test:firefox

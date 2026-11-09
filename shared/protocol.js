@@ -1,4 +1,4 @@
-export const TASK_TYPES = Object.freeze(['ocr', 'captcha-text', 'grid', 'points', 'bbox', 'slider', 'rotate', 'pow']);
+export const TASK_TYPES = Object.freeze(['ocr', 'captcha-text', 'grid', 'points', 'bbox', 'slider', 'puzzle', 'rotate', 'pow']);
 export const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
 export class TaskError extends Error {
@@ -33,11 +33,20 @@ export function validateTask(input) {
     return { ...task, prefix: input.prefix, difficulty: input.difficulty };
   }
   task.image = imageBase64(input.image);
-  if (['slider', 'rotate'].includes(task.type)) task.reference = imageBase64(input.reference);
+  if (task.type === 'captcha-text' && input.minLength !== undefined) {
+    if (!Number.isInteger(input.minLength) || input.minLength < 1 || input.minLength > 32) throw new TaskError('INVALID_TASK', 'Minimum code length must be between 1 and 32.');
+    task.minLength = input.minLength;
+  }
+  if (['slider', 'puzzle', 'rotate'].includes(task.type)) task.reference = imageBase64(input.reference);
+  if (task.type === 'puzzle' && input.y !== undefined) {
+    if (!Number.isFinite(input.y) || input.y < 0 || input.y > 1) throw new TaskError('INVALID_TASK', 'Piece y must be a normalized coordinate between 0 and 1.');
+    task.y = input.y;
+  }
   if (['grid', 'points', 'bbox'].includes(task.type)) {
     if (typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 2000) throw new TaskError('INVALID_TASK', 'Visual tasks require a short instruction describing what to find.');
     task.prompt = input.prompt.trim();
   }
+  if (task.type === 'points' && input.strategy === 'horizontal-pair') task.strategy = input.strategy;
   if (task.type === 'grid') {
     if (![input.rows, input.columns].every((n) => Number.isInteger(n) && n >= 1 && n <= 6) || input.rows * input.columns > 36) throw new TaskError('INVALID_TASK', 'Grid dimensions must be between 1 and 6 rows and columns.');
     task.rows = input.rows; task.columns = input.columns;
@@ -51,8 +60,8 @@ export function validateSolution(task, result) {
   if (!result || typeof result !== 'object') throw new TaskError('INVALID_SOLUTION', 'The recognition engine returned no usable result.');
   const confidence = Number.isFinite(result.confidence) ? Math.min(1, Math.max(0, result.confidence)) : 0;
   if (task.type === 'captcha-text') {
-    if (typeof result.text !== 'string' || result.text.length > 128 || /[\r\n]/.test(result.text)) throw new TaskError('INVALID_SOLUTION', 'The model did not return a single short text code.');
-    return { text: result.text.trim(), confidence };
+    if (typeof result.text !== 'string' || result.text.length > 128 || /[\r\n]/.test(result.text) || (result.text && task.minLength && result.text.trim().length < task.minLength)) throw new TaskError('INVALID_SOLUTION', 'The model did not return a single short text code of the required length.');
+    return { text: result.text.trim(), confidence, ...(result.confidenceBasis === 'variant-agreement' ? { confidenceBasis: result.confidenceBasis } : {}) };
   }
   if (task.type === 'grid') {
     if (!Array.isArray(result.selected) || !result.selected.every((n) => Number.isInteger(n) && n >= 0 && n < task.rows * task.columns)) throw new TaskError('INVALID_SOLUTION', 'The model returned an invalid grid index.');

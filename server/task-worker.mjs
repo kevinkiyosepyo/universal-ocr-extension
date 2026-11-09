@@ -4,11 +4,15 @@ import sharp from 'sharp';
 import { fileURLToPath } from 'node:url';
 import { pixels, matchTemplate, matchRotation, proofOfWork } from './algorithms.mjs';
 import { inferVision } from './vision.mjs';
+import { matchPuzzle } from './puzzle.mjs';
+import { inferTextCode } from './text-code.mjs';
 import { sanitizeSettings, recognitionParameters, cleanText } from '../src/settings.js';
 import { estimateTextScale, scaledSize } from '../src/geometry.js';
 
 async function execute({ task, config }) {
+  if (task.type === 'captcha-text' && config.textModel) return inferTextCode(task, config);
   if (task.type === 'pow') return proofOfWork(task.prefix, task.difficulty);
+  if (task.type === 'puzzle') return matchPuzzle(await pixels(task.image, 0), await pixels(task.reference, 0), task);
   if (task.type === 'slider') {
     // Both images retain their original coordinate system. Scaling them independently
     // would change the relative piece size and invalidate the returned displacement.

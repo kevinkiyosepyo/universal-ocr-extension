@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>Text widget fixture</title>
+<style>body{font:16px Arial;margin:16px}.mtcap-image,#captchaImage{width:300px;height:80px;background-size:100% 100%}.mtcap-inputtext,#captchaAnswer{display:block;width:280px;margin:12px 0;padding:8px}button{padding:10px}</style>
+<form id="application"><div class="mtcap-main"><div class="mtcap-image"></div><input class="mtcap-inputtext" placeholder="Enter text from image"><input type="hidden" class="mtcaptcha-verifiedtoken"><p class="mtcap-msg"></p></div><img id="captchaImage" alt="Text CAPTCHA"><input id="captchaAnswer"><button type="submit">Submit application</button></form>
+<script>
+window.counts={input:0,submit:0};
+const mode=new URL(location.href).searchParams.get('mode')||'mt-review';
+const textMode=mode.startsWith('text');
+const canvas=document.createElement('canvas');canvas.width=300;canvas.height=80;
+const ctx=canvas.getContext('2d');ctx.fillStyle='#eee';ctx.fillRect(0,0,300,80);ctx.fillStyle='#123';ctx.font='bold 40px Arial';ctx.fillText('K7P4XR',20,56);
+document.querySelector('.mtcap-image').style.backgroundImage=`url('${canvas.toDataURL()}')`;
+document.querySelector('#captchaImage').src=canvas.toDataURL();
+document.querySelector('.mtcap-main').hidden=textMode;
+document.querySelector('#captchaImage').hidden=!textMode;document.querySelector('#captchaAnswer').hidden=!textMode;
+const answer=document.querySelector(textMode?'#captchaAnswer':'.mtcap-inputtext');
+answer.oninput=()=>{counts.input++;if(mode==='mt-short')document.querySelector('.mtcap-msg').textContent=answer.value.length<6?'Characters missing, please complete...':'';if(!textMode&&answer.value==='K7P4XR')document.querySelector('.mtcaptcha-verifiedtoken').value='fixture-only-verification'};
+document.querySelector('form').onsubmit=e=>{e.preventDefault();counts.submit++};
+if(mode==='text-existing')answer.value='keep-my-answer';
+if(mode==='text-ambiguous'){const second=answer.cloneNode();second.id='captchaAnswer2';answer.after(second)}
+window.refreshImage=()=>{ctx.fillStyle='#ddd';ctx.fillRect(0,0,20,20);document.querySelector('.mtcap-image').style.backgroundImage=`url('${canvas.toDataURL()}')`};
+</script>

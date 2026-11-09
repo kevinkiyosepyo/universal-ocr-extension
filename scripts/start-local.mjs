@@ -5,10 +5,12 @@ import { setTimeout as pause } from 'node:timers/promises';
 import sharp from 'sharp';
 import { SolverClient } from '../shared/client.js';
 import { inferVision } from '../server/vision.mjs';
+import { inferTextCode } from '../server/text-code.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const local = fileURLToPath(new URL('../.local/', import.meta.url));
 const model = process.env.OCR_VISION_MODEL || 'qwen3-vl:4b-instruct';
+const textModel = process.env.OCR_TEXT_MODEL ?? 'glm-ocr:q8_0';
 const visionURL = process.env.OCR_OLLAMA_ENDPOINT || 'http://127.0.0.1:11435';
 const endpoint = `http://127.0.0.1:${process.env.OCR_PORT || 47821}`;
 const children = new Set(); let stopping = false;
@@ -39,15 +41,16 @@ try {
     if (!ready) throw new Error('Ollama did not start. Install Ollama, or inspect .local/vision.log.');
   }
   const tags = await json(new URL('/api/tags', visionURL));
-  if (!tags.models?.some(item => item.name === model)) {
+  for (const wanted of [...new Set([model, textModel].filter(Boolean))]) if (!tags.models?.some(item => item.name === wanted)) {
     if (!process.argv.includes('--setup')) throw new Error('The model is not downloaded. Run npm run setup:local once.');
-    console.log(`Downloading ${model}. The default model is about 3.3 GB; this is a one-time download.`);
-    const result = await json(new URL('/api/pull', visionURL), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, stream: false }), signal: AbortSignal.timeout(30 * 60_000) });
+    console.log(`Downloading ${wanted}. Default models total about 5.1 GB; this is a one-time download.`);
+    const result = await json(new URL('/api/pull', visionURL), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: wanted, stream: false }), signal: AbortSignal.timeout(30 * 60_000) });
     if (result.error) throw new Error(result.error);
   }
   console.log('Warming the vision model…');
   const image = await sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="256" height="100"><rect width="256" height="100" fill="white"/><text x="20" y="70" font-family="Arial" font-size="48">READY</text></svg>')).png().toBuffer();
   await inferVision({ type: 'captcha-text', image: image.toString('base64') }, { model, ollamaEndpoint: visionURL });
+  if (textModel) await inferTextCode({ type: 'captcha-text', image: image.toString('base64') }, { textModel, ollamaEndpoint: visionURL });
   let key = process.env.OCR_API_KEY;
   if (!key) try { key = (await readFile(local + 'api-key', 'utf8')).trim(); } catch { /* The companion creates it on first start. */ }
   let connected = false;
@@ -61,7 +64,7 @@ try {
     }
     if (!connected) throw new Error('The companion did not start. Check whether its port is already occupied.');
   }
-  console.log(`Ready: ${endpoint} · ${model}`);
+  console.log(`Ready: ${endpoint} · vision ${model}${textModel ? ' · text ' + textModel : ''}`);
   console.log('Pair once in extension Settings using .local/api-key. The key is never printed here.');
   console.log(children.size ? 'Keep this terminal open. Ctrl+C stops only the processes started by this command.' : 'The services are already running.');
 } catch (error) { console.error(error.message); shutdown(1); }

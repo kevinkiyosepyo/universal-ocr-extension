@@ -20,15 +20,16 @@ Every image is base64 or a `data:image/...;base64,...` URL, at most 15 MB and 20
 | Type | Additional fields | Result |
 | --- | --- | --- |
 | `ocr` | `image`, optional `settings` | `text`, `confidence` |
-| `captcha-text` | `image`: a single tightly cropped code | `text`, `confidence` from the local vision model |
+| `captcha-text` | `image`: a single tightly cropped code; optional `minLength` (1–32) | `text`, `confidence`; dedicated OCR also reports `confidenceBasis: "variant-agreement"` |
 | `grid` | `image`, `prompt`, `rows`, `columns` (1–6 each), optional `layout` (`tiles` or `scene`) | `selected`: zero-based row-major cell indexes |
-| `points` | `image`, `prompt` | `points`: normalized `{x, y}` |
+| `points` | `image`, `prompt`; optional `strategy: "horizontal-pair"` for a two-object slider canvas | `points`: normalized `{x, y}` |
 | `bbox` | `image`, `prompt` | `boxes`: normalized `{x, y, width, height}` |
 | `slider` | `image`: original background, `reference`: piece | Original pixel `x`, `y`, dimensions, and normalized top-left coordinates |
+| `puzzle` | `image`, transparent `reference` at the same scale, optional normalized `y` | Pixel/normalized position, alpha bounds, correlation, separation, and matching method |
 | `rotate` | `image`: rotated content, `reference`: upright matching content | `clockwiseDegrees` |
 | `pow` | `prefix`, `difficulty` (0–24) | Decimal `nonce` and SHA-256 `hash` |
 
-Confidence is a heuristic or model estimate in 0–1, not a calibrated success probability. OCR uses seven bundled Tesseract languages. Distorted text, grids, points, and boxes require a running Ollama service and the configured model. Piece matching expects an unscrambled matching piece and background at the same scale, each no larger than 1200 × 1200. Rotation compares circular image content; it does not infer which way an arbitrary object should face. Generic SHA-256 proof of work is not a Prosopo, AWS, or other provider protocol.
+Confidence is a heuristic or model estimate in 0–1, not a calibrated success probability. OCR uses seven bundled Tesseract languages. Distorted text uses GLM-OCR with up to four image treatments, stopping after two exact readings agree. A score of 0.9 denotes agreement, not 90% accuracy. Grids, general points, and boxes use Qwen. The horizontal-pair strategy first measures two separated foreground regions without model inference; overlapping objects fall back to visual analysis. Piece matching expects an unscrambled matching piece and background at the same scale, each no larger than 1200 × 1200. Rotation compares circular image content; it does not infer which way an arbitrary object should face. Generic SHA-256 proof of work is not a Prosopo, AWS, or other provider protocol.
 
 ## Routes and lifecycle
 
@@ -38,7 +39,7 @@ Confidence is a heuristic or model estimate in 0–1, not a calibrated success p
 - `DELETE /v1/tasks/{id}`: cancels running work and deletes its record.
 - `GET /v1/metrics`: in-memory aggregate counters for this service process.
 
-The JavaScript client polls, applies bounded exponential backoff to transport/429/5xx failures, propagates cancellation, and deletes task records after completion. Workers have a 180-second limit; proof of work has a 25-second limit. Records expire after ten minutes, checked every 30 seconds. Identical grid tasks reuse a two-minute, 64-entry memory cache keyed by the normalized task hash. Only selections and confidence are cached, never image bytes or tokens. Metrics expose `cacheHits`; cache use does not establish provider acceptance. Queue length and record count are bounded. Images are held in process memory while needed and are not written to service logs. A reverse proxy or a custom endpoint can have its own logging policy.
+The JavaScript client consumes completed creation responses immediately; otherwise polling starts after 60 ms and grows to a 300 ms cap. It applies bounded exponential backoff to transport/429/5xx failures, propagates cancellation, and deletes task records after completion. Workers have a 180-second limit; proof of work has a 25-second limit. Records expire after ten minutes, checked every 30 seconds. Identical grid tasks reuse a two-minute, 64-entry memory cache keyed by the normalized task hash. Only selections and confidence are cached, never image bytes or tokens. Metrics expose `cacheHits`; cache use does not establish provider acceptance. Queue length and record count are bounded. Images are held in process memory while needed and are not written to service logs. A reverse proxy or a custom endpoint can have its own logging policy.
 
 ## Request authentication
 
@@ -62,7 +63,10 @@ An empty body hashes as an empty byte sequence. Reused nonces are rejected. The 
 | `OCR_API_KEY` | Generated private key file |
 | `OCR_OLLAMA_ENDPOINT` | `http://127.0.0.1:11435` |
 | `OCR_VISION_MODEL` | `qwen3-vl:4b-instruct` |
+| `OCR_TEXT_MODEL` | `glm-ocr:q8_0` |
 
 `npm run vision` starts a separate loopback Ollama process using `.local/models`, leaving the normal Ollama instance and model store unchanged. `npm run vision:pull` downloads the model into that store. An HTTPS reverse proxy for a remote installation must preserve the loopback Host value toward the service and the original signed path.
 
 `npm run setup:local` performs first-run model download and starts both services. `npm run start:all` starts and warms them afterward. The launcher never terminates a pre-existing service it did not start.
+
+`OCR_TEXT_MODEL` must use the GLM-OCR `Text Recognition:` interface. Set it to an empty string to retain the older vision-model code reader. `/health` reports `vision` and `text` availability separately. Use `npm run setup:local` after upgrading to download the dedicated text model.

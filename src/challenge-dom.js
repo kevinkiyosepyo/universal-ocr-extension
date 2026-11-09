@@ -2,8 +2,13 @@ import { gridShape } from './challenge-common.js';
 
 export const visible = (element) => {
   if (!element?.isConnected) return false;
-  const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
-  return rect.width > 2 && rect.height > 2 && style.visibility !== 'hidden' && style.display !== 'none';
+  const rect = element.getBoundingClientRect();
+  if (rect.width <= 2 || rect.height <= 2) return false;
+  for (let node = element; node instanceof Element; node = node.parentElement || node.getRootNode().host) {
+    const style = getComputedStyle(node);
+    if (style.visibility === 'hidden' || style.visibility === 'collapse' || style.display === 'none' || Number(style.opacity) === 0) return false;
+  }
+  return true;
 };
 const first = (selector) => [...document.querySelectorAll(selector)].find(visible);
 export function snapshot() {
@@ -37,8 +42,10 @@ export function snapshot() {
   if (first('.challenge-container canvas, .challenge-view canvas')) throw new Error('This hCaptcha drawing or motion challenge requires manual completion.');
   return null;
 }
-export function verifiedWidget() {
-  return Boolean(document.querySelector('#recaptcha-anchor[aria-checked="true"], #checkbox[aria-checked="true"]'));
+export function verifiedWidget(providers) {
+  return (providers.includes('recaptcha-v2') && Boolean(document.querySelector('#recaptcha-anchor[aria-checked="true"]'))) ||
+    (providers.includes('hcaptcha') && Boolean(document.querySelector('#checkbox[aria-checked="true"]'))) ||
+    (providers.includes('mtcaptcha') && [...document.querySelectorAll('input.mtcaptcha-verifiedtoken')].some(input => input.value.length > 0));
 }
 export function rejectedWidget() {
   return Boolean(first('.rc-imageselect-incorrect-response, .rc-imageselect-error-select-more, .rc-imageselect-error-dynamic-more'));
@@ -69,11 +76,52 @@ function descriptor(tile) {
   const src = element instanceof HTMLImageElement ? element.currentSrc || element.src : style.backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
   return { element, src, width: rect.width, height: rect.height, left: imageRect.left - rect.left, top: imageRect.top - rect.top, imageWidth: imageRect.width, imageHeight: imageRect.height, backgroundSize: style.backgroundSize, backgroundPosition: style.backgroundPosition };
 }
-function loadImage(src) {
+export function loadImage(src) {
   return new Promise((resolve, reject) => {
     const image = new Image(), timer = setTimeout(() => { image.src = ''; reject(new Error('The challenge image timed out.')); }, 10_000);
     image.onload = () => { clearTimeout(timer); if (image.naturalWidth * image.naturalHeight > 20_000_000) reject(new Error('The challenge image is too large.')); else resolve(image); }; image.onerror = () => { clearTimeout(timer); reject(new Error('The challenge image could not be decoded.')); }; image.src = src;
   });
+}
+export async function fingerprint(value) {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+// Capture exactly the rendered image box, including CSS sprites. Keep alpha
+// for puzzle masks and use device-independent CSS pixels for both images.
+export async function captureElement(element, fetchImage, cache = new Map()) {
+  if (!visible(element)) throw new Error('The challenge image is not visible.');
+  const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(rect.width); canvas.height = Math.round(rect.height);
+  if (canvas.width > 1200 || canvas.height > 1200) throw new Error('The challenge image exceeds 1200 pixels per side.');
+  const context = canvas.getContext('2d');
+  if (element instanceof HTMLCanvasElement) context.drawImage(element, 0, 0, canvas.width, canvas.height);
+  else {
+    const src = element instanceof HTMLImageElement ? element.currentSrc || element.src : style.backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
+    if (!src) throw new Error('The challenge image has not loaded.');
+    if (!cache.has(src)) {
+      const data = src.startsWith('data:image/') || src.startsWith('blob:') ? src : await fetchImage(src);
+      cache.set(src, await loadImage(data));
+      if (cache.size > 16) cache.delete(cache.keys().next().value);
+    }
+    const image = cache.get(src);
+    if (element instanceof HTMLImageElement) {
+      if (!element.complete || !element.naturalWidth) throw new Error('The challenge image is still loading.');
+      if (!['fill', 'contain', 'cover'].includes(style.objectFit)) throw new Error('Unsupported challenge image sizing.');
+      if (style.objectFit === 'fill') context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      else {
+        const scale = Math[style.objectFit === 'cover' ? 'max' : 'min'](canvas.width / image.width, canvas.height / image.height);
+        const w = image.width * scale, h = image.height * scale;
+        if (style.objectPosition !== '50% 50%') throw new Error('Unsupported challenge image alignment.');
+        context.drawImage(image, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+      }
+    } else {
+      const box = backgroundGeometry({ imageWidth: rect.width, imageHeight: rect.height, left: 0, top: 0, backgroundSize: style.backgroundSize, backgroundPosition: style.backgroundPosition }, image);
+      context.drawImage(image, box.x, box.y, box.width, box.height);
+    }
+  }
+  return canvas.toDataURL('image/png');
 }
 function backgroundGeometry(item, image) {
   let width = image.width, height = image.height;

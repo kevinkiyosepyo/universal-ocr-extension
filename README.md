@@ -1,41 +1,41 @@
 # Universal OCR
 
-An independent browser extension and local recognition service. Read text from images and page regions, analyze visual challenges, and configure automation for specific sites. No paid CAPTCHA subscription is required for the implemented local tools.
+An independent, open-source browser extension and local recognition service. Read text from images and page regions, analyze visual challenges, and configure automation for specific sites. No paid CAPTCHA subscription is required for the implemented local tools.
 
 ![Universal OCR workbench](docs/workbench.png)
 
-Version 2.1 adds image-grid assistance for reCAPTCHA v2, including replacement tiles, multi-round challenges, and optional verification. One live Google demo session completed successfully. The experimental hCaptcha image-grid adapter has local fixture coverage only; live acceptance is unverified. This is not full CaptchaSonic parity: other proprietary challenge modes and provider-issued scores are not implemented. See the [capability matrix](docs/COMPATIBILITY.md) and [measured results](docs/verification-2.1.md).
+Version 2.2 adds dedicated text-code recognition, MTCaptcha field handling, Geetest and Tencent slider adapters, and native Procaptcha / CaptchaFox workflows. Procaptcha proof of work and CaptchaFox's object slider passed official public demos with the **Browser Input** build. Geetest and MTCaptcha live tests did not confirm acceptance. This is not full CaptchaSonic parity: see the [capability matrix](docs/COMPATIBILITY.md) and [measured results](docs/verification-2.2.md).
 
 The referenced [CaptchaSonic repository](https://github.com/Captcha-Sonic/CaptchaSonic-Extension) contains documentation and release assets, but no extension source at the inspected commit. This project includes none of its code, binaries, artwork, or branding.
 
 ## CAPTCHA support status
 
-**This project does not support all CAPTCHA types advertised by CaptchaSonic.** The table below describes released version **2.1.0**. Widget detection and generic image-analysis tools do not establish a working provider integration. **Not integrated** means automatic completion of that provider is not implemented here; **partial** means only the stated subset is implemented or verified.
+**This project does not support all CAPTCHA types advertised by CaptchaSonic.** This table describes version **2.2.0**. Detection, generic image tools, and local fixtures do not establish live provider acceptance.
 
-| CAPTCHA type / feature | Status in this project | What works and what is missing |
+| CAPTCHA type / feature | Status | What works and what is missing |
 | --- | --- | --- |
-| PopularCaptcha (Image / Grid / BBox / Multi) | **Not integrated** | Generic image, grid, point, and box tools exist. A PopularCaptcha adapter and live acceptance are missing. |
-| reCAPTCHA v2 (Visible & Invisible) | **Partial — visible image grids** | Grid capture, replacement tiles, multiple rounds, and optional Verify are implemented. One live Google demo completed. Invisible flows are not verified; audio and other non-grid modes are missing. |
-| reCAPTCHA v3 | **Not implemented** | Detection only. No provider-issued score or token generation. |
-| AWS WAF CAPTCHA | **Not integrated** | Detection and generic image tools only. The AWS challenge workflow and live acceptance are missing. |
-| Geetest v3 (Slide / Click) | **Not integrated** | Generic piece matching and point tools only. Image reconstruction, provider-specific interactions, and live acceptance are missing. |
-| Geetest v4 (Slide) | **Not integrated** | Generic piece matching only. The Geetest v4 workflow and live acceptance are missing. |
-| BLS OCR / Text CAPTCHA | **Partial — text recognition only** | Ordinary OCR and local distorted-code recognition work on tested examples. No verified BLS workflow; noisy or tiny codes can be misread. |
-| mtCaptcha | **Not integrated** | Detection and generic OCR only. Automatic widget completion is missing. |
-| CaptchaFox | **Not integrated** | Detection only. Automatic widget completion is missing. |
-| Tencent CAPTCHA | **Not integrated** | Detection and generic piece/point tools only. The provider workflow and live acceptance are missing. |
-| TikTok CAPTCHA | **Not integrated** | Detection, generic piece matching, and reference-based rotation tools exist. TikTok slide, circle, and click workflows have not been integrated or verified live in this release. |
-| Prosopo / Procaptcha | **Not integrated** | Detection and a generic SHA-256 primitive only. The actual provider proof-of-work protocol and signed tokens are missing. |
-| Binance CAPTCHA | **Not integrated** | Detection and generic image tools only. The provider workflow and live acceptance are missing. |
-| Universal OCR | **Working — general text** | Offline text recognition in seven languages, image uploads, region capture, and editable results. Distorted CAPTCHA text and handwriting are not universally reliable. |
+| PopularCaptcha (Image / Grid / BBox / Multi) | **Not integrated** | Generic image tools exist; provider identity, widget contract, adapter, and live acceptance are missing. |
+| reCAPTCHA v2 (Visible & Invisible) | **Partial — visible grids** | Capture, replacement tiles, multiple rounds, and optional Verify; one 2.1 public-demo success. Invisible flows, audio, and other modes remain unverified. |
+| reCAPTCHA v3 | **Not integrated** | Detection only; no provider-issued score or token workflow. |
+| AWS WAF CAPTCHA | **Not integrated** | Detection and generic tools; needs a provider adapter and test deployment. |
+| Geetest v3 (Slide / Click) | **Partial — slider fixtures** | Reconstructed canvas capture and slider adapter pass local tests; live acceptance and click modes are missing. |
+| Geetest v4 (Slide) | **Partial — live rejection** | CSS capture, texture/outline matching, and slider input; official demo rejected verification. |
+| BLS OCR / Text CAPTCHA | **Partial — text recognition** | Dedicated local code model and field pairing; distorted codes can still be wrong. BLS acceptance unverified. |
+| MTCaptcha | **Partial — live unverified** | Image capture, field fill, and one missing-character retry; fresh demo acceptance was not confirmed. |
+| CaptchaFox | **Object-slider demo verified** | Native checkbox and object slider passed with Browser Input; other modes/sites unverified. |
+| Tencent CAPTCHA | **Partial — slider fixtures** | Sprite capture and slider adapter pass local tests; live completion unverified. |
+| TikTok CAPTCHA | **Deferred** | Detection and generic tools; provider slide, circle, and click workflows remain unintegrated. |
+| Prosopo / Procaptcha | **Proof-of-work demo verified** | Native flow passed with Browser Input and a provider response; other modes unverified. |
+| Binance CAPTCHA | **Not integrated** | Detection and generic tools; needs a provider adapter and test page. |
+| Universal OCR | **Working — general text** | Offline OCR in seven languages, uploads, region capture, and editable results; not universal accuracy on distorted text or handwriting. |
 
-**Additional adapter:** hCaptcha image grids are implemented and tested with local fixtures, but live acceptance has not been verified. Drawing, motion, spatial, and other non-grid challenges are not supported.
+**Additional adapter:** hCaptcha image grids have local fixture coverage, without live acceptance. Drawing, motion, spatial, and other modes are unsupported.
 
-**Measured limits:** the one successful live reCAPTCHA session required 11 recognition rounds and about 150 seconds. Five graded recognition samples matched their expected answers in the final benchmark, taking about 8–10 seconds each. These are small-sample results, not a general success-rate or speed guarantee. See the [detailed capability matrix](docs/COMPATIBILITY.md) and [verification evidence](docs/verification-2.1.md).
+**Measured limits:** the earlier reCAPTCHA success required 11 rounds and about 150 seconds. The latest accepted Procaptcha and CaptchaFox runs took 2.5 and 8.9 seconds. Four text-code regressions passed, including JMKR; warm cases took about 0.5 seconds. These are small samples, not general accuracy or speed guarantees. See the [provider matrix](docs/COMPATIBILITY.md), [2.1 evidence](docs/verification-2.1.md), and [2.2 evidence](docs/verification-2.2.md).
 
 ## Install the extension
 
-1. Download and extract the v2.1.0 ZIP for your browser from [Releases](https://github.com/kevinkiyosepyo/universal-ocr-extension/releases/tag/v2.1.0).
+1. Download and extract the v2.2.0 ZIP for your browser from [Releases](https://github.com/kevinkiyosepyo/universal-ocr-extension/releases/tag/v2.2.0).
 2. **Chrome / Brave / Chromium:** open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
 3. **Edge:** use `edge://extensions` and the Edge package with the same steps.
 4. **Firefox 140+:** open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select the extracted `manifest.json`. This unsigned build must be reloaded after restarting Firefox; permanent installation requires Mozilla signing.
@@ -65,7 +65,7 @@ npm ci
 npm run setup:local
 ```
 
-The first setup downloads `qwen3-vl:4b-instruct` (about 3.3 GB), starts the companion, and warms the model. Subsequent starts need one command:
+The first setup downloads `qwen3-vl:4b-instruct` for visual reasoning and `glm-ocr:q8_0` for text codes (about 5.1 GB total), starts the companion, and warms the models. Subsequent starts need one command:
 
 ```sh
 npm run start:all
@@ -77,18 +77,19 @@ Pair once in extension **Settings**: URL `http://127.0.0.1:47821`, Pairing key f
 
 For ordinary text OCR, no service is needed. `npm start` remains available for starting only the companion; `npm run vision` starts only Ollama. See [API configuration](docs/API.md) for custom models and endpoints.
 
-## Assist an image CAPTCHA
+## Assist a visible CAPTCHA
 
-1. Open the image challenge on the page. The extension does not initiate a hidden CAPTCHA or submit an application.
-2. Open the extension and choose **Assist visible image challenge**. Grant the requested site, Google/hCaptcha frame, and navigation access.
-3. By default, the extension selects images and asks you to review and press **Verify**. The optional **Press CAPTCHA Verify automatically** checkbox enables verification too. Completing a CAPTCHA may continue a form action the page already has pending.
-4. Use **Stop** in the page panel or popup at any time. Navigation, expiration, uncertain recognition, and refused clicks also stop the session.
+1. Open the challenge, then choose **Assist visible challenge** in the extension. Select its provider or use automatic detection, and grant access to that site and provider.
+2. Default review mode displays text or slider guidance, or selects grid cells for review. It does not type a code, release a slider, start a native checkbox, or press Verify.
+3. **Allow CAPTCHA completion** enables those actions. Completion may resume a pending form action on the site, so do not use it on uncertain previous submissions.
+4. The separate **Browser Input** package adds Chrome's required `debugger` permission. Install it instead of the ordinary Chromium package when needed, then explicitly enable **Use browser input** for a session. It uses pointer events only, attaches to the selected top-level tab for each action, and detaches afterward. Chrome may show a debugging banner. The ordinary packages do not request this permission. Browser input is unavailable in Firefox and nested frames.
+5. Use **Stop** at any time. Navigation, expiry, uncertain recognition, ambiguous controls, and provider rejection stop the session. Stopping a drag returns to its starting position before releasing.
 
-The adapter reads the provider's prompt and rendered images, preserves sprite geometry, waits for replacement tiles and sliding tables, and watches for a checked widget. It does not manufacture or insert provider tokens. A checked widget is not proof of a completed application or server-side transaction. It cannot guarantee acceptance on every site.
+The adapters use rendered images and provider-owned widgets. They do not manufacture or insert provider tokens. A widget response is not an application receipt. CaptchaFox's protected canvas is captured as a cropped screenshot; only that widget crop reaches the configured recognition service. The screenshot path requires toolbar-granted active-tab access.
 
-The visual workbench also offers **Read distorted text (vision)**. Crop tightly around one code. Low-confidence readings are marked uncertain. The supplied 193 × 226 collage contains tiny, ambiguous characters and is not a reliable accuracy benchmark. Ordinary text OCR and vision code reading are separate tools.
+The visual workbench also offers **Read distorted text**. Crop tightly around one code. The text engine checks agreement across image treatments and preserves case. Agreement is not a correctness probability; matching mistakes are still possible. The supplied 193 × 226 collage contains tiny, ambiguous characters and is not a reliable accuracy benchmark. Ordinary text OCR and vision code reading are separate tools.
 
-Other workbench tools include grid, point, and bounding-box analysis; matching an unscrambled piece at its original scale; reference-based circular rotation; and generic SHA-256 proof of work.
+Other workbench tools include grid, point, and bounding-box analysis; darkened puzzle-hole matching using texture and outline checks; matching an unchanged piece at its original scale; reference-based circular rotation; and generic SHA-256 proof of work.
 
 ## Configure a site rule
 
@@ -121,15 +122,18 @@ npx playwright install chromium firefox
 npm run test:browser
 npm run test:automation
 npm run test:challenges
+npm run test:widgets
+npm run test:browser-input
 npm run test:firefox
 npm run lint:firefox
 npm run test:vision  # requires the running local vision model
+npm run test:text-code  # requires the local text model
 npm run package
 ```
 
-Builds go to `dist/`, `dist-firefox/`, and `dist-edge/`. ZIPs and SHA-256 checksums go to `artifacts/`. Linux browser checks need Playwright's browser system dependencies and CJK fonts (`npx playwright install --with-deps chromium firefox`, then install `fonts-noto-cjk`).
+Builds go to `dist/`, `dist-firefox/`, `dist-edge/`, and `dist-browser-input/`. ZIPs and SHA-256 checksums go to `artifacts/`. Linux browser checks need Playwright's browser system dependencies and CJK fonts (`npx playwright install --with-deps chromium firefox`, then install `fonts-noto-cjk`).
 
-Tests cover real OCR, geometry, settings, authenticated API requests, Unicode transport, cancellation, idempotency, image comparison, browser rule execution, application-submit rejection, stale-document protection, themes, proxy restoration, and real local vision inference. Browser tests use disposable profiles and synthetic fixtures. Firefox uses a temporary add-on and a test-only DOM driver because Playwright cannot instrument its extension-process tabs. No test opens or submits real applications. See [verification evidence and limits](docs/verification.md).
+Tests cover real OCR, geometry, settings, authenticated API requests, Unicode transport, cancellation, idempotency, image comparison, browser rule execution, application-submit rejection, stale-document protection, themes, proxy restoration, and real local vision inference. Browser tests use disposable profiles and synthetic fixtures. Firefox uses a temporary add-on and a test-only DOM driver because Playwright cannot instrument its extension-process tabs. No test opens or submits real applications. See [verification evidence and limits](docs/verification-2.2.md).
 
 ## Source map
 

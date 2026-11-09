@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>Canvas slider fixture</title>
+<style>.cf-slide{position:relative;width:300px;height:180px;background:white}.cf-slide p{margin:0;height:40px}.cf-slide__canvas{width:300px;height:60px}.cf-slider__button{position:absolute;top:135px;left:0;width:50px;height:40px;background:#467}</style>
+<p>Application fields outside the selected challenge</p>
+<div class="cf-slide"><p>Move the orange object onto the blue object</p><div class="cf-slide__canvas"><canvas width="300" height="60"></canvas></div><div class="cf-slider__button" role="slider" aria-label="Move object"></div></div>
+<form><input type="hidden" name="cf-captcha-response"><button type="submit">Submit application</button></form>
+<script>
+window.counts={drags:0,submit:0};window.trustedPointer=false;
+const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),handle=document.querySelector('[role=slider]');let start=null;
+function draw(x=0){ctx.clearRect(0,0,300,60);ctx.fillStyle='#167bcd';ctx.fillRect(155,5,50,50);ctx.fillStyle='#e97826';ctx.fillRect(5+x,5,50,50);if(location.search){ctx.fillStyle='#0a6';ctx.fillRect(230,5,50,50)}}draw();
+handle.onmousedown=e=>{start=e.clientX;counts.drags++;trustedPointer=e.isTrusted};
+document.onmousemove=e=>{if(start!==null){draw(e.clientX-start);handle.style.left=(e.clientX-start)+'px'}};
+document.onmouseup=e=>{if(start===null)return;const distance=e.clientX-start;start=null;if(Math.abs(distance-150)<2)setTimeout(()=>{document.querySelector('input').value='fixture-response'},1200)};
+document.querySelector('form').onsubmit=e=>{e.preventDefault();counts.submit++};
+</script>

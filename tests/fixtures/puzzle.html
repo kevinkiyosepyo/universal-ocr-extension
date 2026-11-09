@@ -1,0 +1,38 @@
+<!doctype html><meta charset="utf-8"><title>Puzzle widget fixture</title>
+<style>body{font:16px Arial}.geetest_box,.geetest_panel{width:320px}.geetest_slide,.geetest_slider{position:relative;width:320px}.geetest_window{position:relative;width:320px;height:160px}.geetest_bg,.geetest_canvas_bg{position:absolute;width:320px;height:160px;background-size:100% 100%}.geetest_slice_bg,.geetest_canvas_slice{position:absolute;width:60px;height:60px;left:0;top:43px;background-size:100% 100%}.geetest_btn,.geetest_slider_button{margin-top:10px;width:60px;height:40px;background:#467;cursor:grab}.geetest_slice_bg,.geetest_canvas_slice{z-index:2}</style>
+<div class="geetest_captcha"><div class="geetest_box"><div class="geetest_slide"><div class="geetest_window"><div class="geetest_bg"></div><div class="geetest_slice_bg"></div></div><div class="geetest_btn" role="slider" aria-label="Move piece"></div></div></div></div>
+<form><button type="submit">Submit application</button></form>
+<script>
+window.counts={drags:0,submit:0};window.moves=[];
+const mode=new URL(location.href).searchParams.get('mode')||'v4';
+const initial=mode==='tencent'?24:0;
+const scene=document.createElement('canvas');scene.width=320;scene.height=160;const ctx=scene.getContext('2d');
+let seed=471292;
+for(let y=0;y<160;y+=4)for(let x=0;x<320;x+=4){seed=(1664525*seed+1013904223)>>>0;ctx.fillStyle=`rgb(${seed>>>24},${seed>>>16&255},${seed>>>8&255})`;ctx.fillRect(x,y,4,4)}
+const piece=document.createElement('canvas');piece.width=60;piece.height=60;
+const p=piece.getContext('2d');p.beginPath();p.moveTo(7,6);p.lineTo(53,30);p.lineTo(7,54);p.closePath();p.clip();p.drawImage(scene,173,43,60,60,0,0,60,60);
+const cutout=document.createElement('canvas');cutout.width=60;cutout.height=60;const cc=cutout.getContext('2d');cc.drawImage(piece,0,0);cc.globalCompositeOperation='source-atop';cc.fillStyle='#000a';cc.fillRect(0,0,60,60);ctx.drawImage(cutout,173,43);
+// Decorative white edge must not dominate the texture matcher.
+p.strokeStyle='#fff';p.lineWidth=2;p.stroke();
+let bg=document.querySelector('.geetest_bg'),ref=document.querySelector('.geetest_slice_bg'),handle=document.querySelector('.geetest_btn');
+if(mode.startsWith('v3')){
+ document.querySelector('.geetest_box').className='geetest_panel';document.querySelector('.geetest_slide').className='geetest_slider';
+ scene.className='geetest_canvas_bg';bg.replaceWith(scene);bg=scene;
+ // Version 3 may render the piece in a background-sized transparent canvas.
+ const padded=document.createElement('canvas');padded.width=320;padded.height=160;padded.getContext('2d').drawImage(piece,0,43);padded.className='geetest_canvas_slice';padded.style.cssText='width:320px;height:160px;top:0';ref.replaceWith(padded);ref=padded;
+ handle.className='geetest_slider_button';
+}else{bg.style.backgroundImage=`url('${scene.toDataURL()}')`;ref.style.backgroundImage=`url('${piece.toDataURL()}')`}
+if(mode==='tencent'){
+ const root=document.querySelector('.geetest_captcha');root.id='tCaptchaDyMainWrap';
+ bg.style.cssText+=';position:absolute;width:320px;height:160px;background-size:100% 100%';bg.className='tencent-captcha-dy__verify-bg-img';
+ const atlas=document.createElement('canvas');atlas.width=320;atlas.height=160;atlas.getContext('2d').drawImage(piece,67,80);
+ ref.className='tencent-captcha-dy__fg-item';ref.style.cssText=`position:absolute;width:60px;height:60px;left:24px;top:43px;background-image:url('${atlas.toDataURL()}');background-size:320px 160px;background-position:-67px -80px;z-index:2`;
+ handle.className='tencent-captcha-dy__slider-block';handle.style.cssText='width:60px;height:40px;background:#467;margin-top:10px';
+}
+let start=null;
+window.trustedPointer=false;
+handle.onmousedown=e=>{start=e.clientX;counts.drags++;trustedPointer=e.isTrusted};
+document.addEventListener('mousemove',e=>{if(start===null)return;const distance=Math.max(0,e.clientX-start);moves.push(distance);ref.style.transform=`translateX(${distance}px)`;handle.style.transform=`translateX(${distance}px)`});
+document.addEventListener('mouseup',e=>{if(start===null)return;const distance=e.clientX-start;start=null;if(Math.abs(distance-(173-initial))<=2){if(mode==='tencent'){const success=document.createElement('div');success.className='tencent-captcha-dy__verify-status-img--success';success.textContent='Verified';document.querySelector('#tCaptchaDyMainWrap').append(success)}else document.querySelector('.geetest_captcha').classList.add('geetest_success')}});
+document.querySelector('form').onsubmit=e=>{e.preventDefault();counts.submit++};
+</script>

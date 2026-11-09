@@ -39,13 +39,14 @@ export function createSolverServer(config) {
       if (nonces.size >= 20_000) throw new TaskError('QUEUE_FULL', 'Request limit reached. Retry in one minute.', true);
       nonces.set(nonce, Date.now() + 120_000);
       if (request.method === 'GET' && url.pathname === '/health') {
-        let vision = { available: false, model: config.model };
+        let vision = { available: false, model: config.model }, text = { available: false, model: config.textModel || config.model };
         try {
           const result = await fetch(new URL('api/tags', endpointURL(config.ollamaEndpoint)), { signal: AbortSignal.timeout(2500), redirect: 'error' });
           const value = await result.json();
           vision.available = result.ok && value.models?.some((model) => model.name === config.model);
+          text.available = result.ok && value.models?.some(model => model.name === text.model);
         } catch { /* OCR and deterministic engines remain available. */ }
-        reply(response, 200, { status: 'ok', version: '2.1.0', vision, tasks: TASK_TYPES, queued: queue.pending.length, running: queue.active }); return;
+        reply(response, 200, { status: 'ok', version: '2.2.0', vision, text, tasks: TASK_TYPES, queued: queue.pending.length, running: queue.active }); return;
       }
       if (request.method === 'GET' && url.pathname === '/v1/metrics') { reply(response, 200, queue.metrics); return; }
       if (request.method === 'POST' && url.pathname === '/v1/tasks') {

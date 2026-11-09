@@ -16,7 +16,7 @@ if (!key) {
 }
 const port = Number(process.env.OCR_PORT || 47821);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('OCR_PORT must be between 1024 and 65535.');
-const { server } = createSolverServer({ key, model: process.env.OCR_VISION_MODEL || 'qwen3-vl:4b-instruct', ollamaEndpoint: process.env.OCR_OLLAMA_ENDPOINT || 'http://127.0.0.1:11435', concurrency: 2 });
+const { server } = createSolverServer({ key, model: process.env.OCR_VISION_MODEL || 'qwen3-vl:4b-instruct', textModel: process.env.OCR_TEXT_MODEL ?? 'glm-ocr:q8_0', ollamaEndpoint: process.env.OCR_OLLAMA_ENDPOINT || 'http://127.0.0.1:11435', concurrency: 2 });
 server.listen(port, '127.0.0.1', () => {
   console.log(`Local solver: http://127.0.0.1:${port}`);
   console.log(`API key: stored in ${keyFile}. Copy its contents into extension Settings.`);
