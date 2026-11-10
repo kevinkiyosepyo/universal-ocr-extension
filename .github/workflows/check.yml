@@ -22,8 +22,15 @@ jobs:
       - run: npm run test:browser
       - run: npm run test:automation
       - run: npm run test:challenges
+      - run: npm run test:challenge-stop
       - run: npm run test:points
       - run: npm run test:tiktok
+      - run: npm run test:aws-waf-slide
+      - run: npm run test:geetest-images
+      - run: npm run test:aws-waf
+      - run: npm run test:binance
+      - run: npm run test:recaptcha-v3
+      - run: npm run test:provider-routes
       - run: npm run test:widgets
       - run: npm run test:browser-input
       - run: npm run build:firefox

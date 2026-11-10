@@ -1,6 +1,6 @@
 {
   "name": "universal-ocr-extension",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "private": true,
   "description": "Local OCR, visual recognition tools, and opt-in browser automation",
   "type": "module",
@@ -33,7 +33,14 @@
     "test:text-code": "node scripts/smoke-text-code.mjs",
     "benchmark": "node scripts/benchmark.mjs",
     "test:points": "node scripts/smoke-points.mjs",
-    "test:tiktok": "node scripts/smoke-tiktok.mjs"
+    "test:tiktok": "node scripts/smoke-tiktok.mjs",
+    "test:aws-waf": "node scripts/smoke-aws-waf.mjs",
+    "test:binance": "node scripts/smoke-binance.mjs",
+    "test:recaptcha-v3": "node scripts/smoke-recaptcha-v3.mjs",
+    "test:provider-routes": "node scripts/smoke-provider-routes.mjs",
+    "test:aws-waf-slide": "node scripts/smoke-aws-waf-slide.mjs",
+    "test:geetest-images": "node scripts/smoke-geetest-images.mjs",
+    "test:challenge-stop": "node scripts/smoke-challenge-stop.mjs"
   },
   "dependencies": {
     "@tesseract.js-data/chi_sim": "1.0.0",

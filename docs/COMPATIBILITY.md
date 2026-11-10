@@ -24,16 +24,16 @@ This is an independent implementation, not a copy of CaptchaSonic's private solv
 | PopularCaptcha image / grid / bbox / multi | CaptchaSonic's hCaptcha-style API family; existing hCaptcha grids, experimental static matching-shapes clicks, and generic image tools | Live acceptance and other click / drag / video / provider-token workflows |
 | reCAPTCHA v2 visible | Grid adapter, sprite capture, dynamic replacements, multi-round verification; one successful 2.1 public-demo session | Reliable acceptance across sites; audio / non-grid modes |
 | reCAPTCHA v2 invisible | Detection distinguished from v3; existing adapter can see a visible image grid | Trigger and callback flows remain unverified; no form Submit trigger |
-| reCAPTCHA v3 | Score-script / action-button detection | Site-specific provider score and token workflow; no local token generation |
-| AWS WAF | Widget detection and generic image comparison | Provider adapter and an available test deployment |
+| reCAPTCHA v3 | Native explicit action through the standard Google API; full-extension official-demo verification passed at score 0.9 | Arbitrary site backend/callback integration and Enterprise; a token alone is not a server receipt |
+| AWS WAF | SDK-derived English static image grids and bifurcated image sliders; scoped provider Confirm; distinct puzzle-correct status | Live acceptance, token issuance, path-dot/audio modes, and a usable test deployment |
 | Geetest v3 | Reconstructed canvas slider adapter and observed popup layout; official demo reached recognition but stopped on low confidence | Live acceptance and click / non-slider modes |
-| Geetest v4 | CSS image capture, alpha-aware texture/outline matcher, guarded slider drag | Official demo rejected verification, including browser-input test; non-slider modes |
+| Geetest v4 | Guarded slider, ordered-reference icons, and 3×3 reference-image grids; SDK sprite reconstruction | Live reliability: slider rejected; image recognition can abstain or be incorrect. Other game/audio modes remain unsupported |
 | MTCaptcha | Image capture, dedicated OCR, field insertion, one bounded missing-character retry | Fresh public-demo acceptance was not confirmed; model errors remain |
 | CaptchaFox | Native checkbox, cropped canvas capture, object slider, fast foreground path and vision fallback | Official object-slider demo passed; other modes and sites unverified |
 | Tencent | Current sprite-slider DOM adapter, including scaled-layout tests; official demo completed native checkbox verification without a puzzle | Live slider acceptance and non-slider adapters |
 | TikTok | Experimental current-SDK slider, circle-rotation, and English same-shape-pair adapters; blob capture, guarded input, exact success-marker handling | Live acceptance, other click modes, CSS-scaled widgets, real-world ring-image continuity, and Careers verification |
 | Prosopo / Procaptcha | Native proof-of-work flow; official demo passed with a provider response | Image, icon-order, puzzle, and invisible modes unverified |
-| Binance | Widget detection and generic image tools | Provider-specific adapter and a test page |
+| Binance | SDK-derived slider, native checkbox, one/two-page image grids; two standalone slider acceptances | Full-extension acceptance remains unverified; live grid/native-checkbox acceptance and other SDK variants |
 | hCaptcha | Image-grid and static matching-shapes adapters, with fixture-tested selections / verification | Live acceptance; drawing, motion, spatial and other non-grid modes |
 | Cloudflare Turnstile | Widget/script detection | Provider-managed verification tokens |
 
@@ -74,3 +74,7 @@ Additional primary references: [MTCaptcha](https://docs.mtcaptcha.com/), [Geetes
 ## Version 2.4 evidence
 
 See [the 2.4 verification report](verification-2.4.md) for the TikTok SDK contract, fixture scope, Geetest v3 observation, and measured performance changes. TikTok remains experimental; no live Careers verification is claimed.
+
+## Version 2.5 evidence
+
+See [the 2.5 verification report](verification-2.5.md) for current native-v3, AWS WAF, Binance, Geetest image-mode, and cancellation evidence. The earlier notes about absent Binance SDK contracts are historical: the current public BCaptcha SDK was inspected for this release. AWS SDK-derived adapter tests are now available, but a usable hosted AWS acceptance test remains unavailable.

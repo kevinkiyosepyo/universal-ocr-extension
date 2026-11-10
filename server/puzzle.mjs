@@ -57,7 +57,7 @@ export function matchPuzzle(background, piece, options = {}) {
   // Dark puzzle holes can replace, rather than merely dim, the original
   // texture. Corroborate an uncertain texture position with the alpha outline.
   // A rotated distractor has the wrong boundary even when its color matches.
-  if (confidence < .9 && best.score < .9) {
+  if (confidence < .9) {
     const opaque = (x, y) => x >= 0 && y >= 0 && x < piece.width && y < piece.height && piece.data[(y * piece.width + x) * 4 + 3] >= 200;
     const edges = [];
     for (let y = top; y <= bottom; y++) for (let x = left; x <= right; x++) if (opaque(x, y)) {
@@ -66,12 +66,26 @@ export function matchPuzzle(background, piece, options = {}) {
     if (edges.length >= 24) {
       const outlines = candidates.map(candidate => {
         let contrast = 0, positive = 0, count = 0;
+        let boundary = 0, boundaryPositive = 0, ridge = 0, ridgePositive = 0, contourCount = 0;
         for (const [px, py, dx, dy] of edges) {
           const ox = candidate.x + px + dx * 3, oy = candidate.y + py + dy * 3, ix = candidate.x + px - dx * 4, iy = candidate.y + py - dy * 4;
           if (ox < 0 || oy < 0 || ox >= width || oy >= height || ix < 0 || iy < 0 || ix >= width || iy >= height) continue;
           const delta = pixels[oy * width + ox] - pixels[iy * width + ix]; contrast += delta; positive += delta > 8 ? 1 : 0; count++;
+          const sample = offset => {
+            const sx = candidate.x + px + dx * offset, sy = candidate.y + py + dy * offset;
+            return sx < 0 || sy < 0 || sx >= width || sy >= height ? null : pixels[sy * width + sx];
+          };
+          const inside = sample(-5), outside = sample(6);
+          if (inside === null || outside === null) continue;
+          const values = [-2, -1, 0, 1, 2, 3].map(sample);
+          const ridgeContrast = Math.max(Math.max(...values) - Math.max(inside, outside), Math.min(inside, outside) - Math.min(...values));
+          const edgeContrast = Math.max(Math.abs(values[2] - values[0]), Math.abs(values[3] - values[1]), Math.abs(values[4] - values[2]));
+          boundary += edgeContrast; boundaryPositive += edgeContrast > 12 ? 1 : 0;
+          ridge += ridgeContrast; ridgePositive += ridgeContrast > 8 ? 1 : 0; contourCount++;
         }
-        return { ...candidate, contrast: count ? contrast / count : 0, agreement: count ? positive / count : 0 };
+        return { ...candidate, contrast: count ? contrast / count : 0, agreement: count ? positive / count : 0,
+          boundary: contourCount ? boundary / contourCount : 0, boundaryAgreement: contourCount ? boundaryPositive / contourCount : 0,
+          ridge: contourCount ? ridge / contourCount : 0, ridgeAgreement: contourCount ? ridgePositive / contourCount : 0 };
       }).sort((a, b) => b.contrast - a.contrast);
       const outline = outlines[0], other = outlines.find(candidate => Math.hypot(candidate.x - outline.x, candidate.y - outline.y) > Math.max(6, pw * .2));
       const certainty = outline.agreement * Math.min(1, outline.contrast / 20) * Math.min(1, Math.max(0, outline.contrast - (other?.contrast || 0)) / 12);
@@ -79,6 +93,20 @@ export function matchPuzzle(background, piece, options = {}) {
       // authorize a drag. Flat masks and competing outlines stay uncertain.
       if (certainty > confidence && separation > .05 && Math.hypot(outline.x - best.x, outline.y - best.y) <= Math.max(6, pw * .12) && best.score >= .3) {
         best = outline; confidence = certainty; method = 'texture-and-outline';
+      }
+      // Repeated logos can have several excellent texture matches. A narrow
+      // cutout contour is an independent hypothesis: require most of the alpha
+      // boundary, a unique contour, and strong texture within three pixels of
+      // that contour. A bright scene edge or an untextured mask is insufficient.
+      const contours = [...outlines].sort((a, b) => b.boundary - a.boundary);
+      const contour = contours[0], competing = contours.find(candidate => Math.hypot(candidate.x - contour.x, candidate.y - contour.y) > Math.max(6, pw * .2));
+      if (contour.boundaryAgreement >= .85 && contour.ridgeAgreement >= .55 && contour.ridge >= 15) {
+        const local = candidates.filter(candidate => Math.hypot(candidate.x - contour.x, candidate.y - contour.y) <= 3).reduce((best, candidate) => candidate.score > best.score ? candidate : best, { score: -1 });
+        const contourConfidence = contour.boundaryAgreement * Math.min(1, contour.boundary / 40) * Math.min(1, Math.max(0, contour.boundary - (competing?.boundary || 0)) / 20);
+        const combined = Math.min(contourConfidence, Math.max(0, local.score));
+        if (local.score >= .85 && combined > confidence) {
+          best = local; confidence = combined; method = 'texture-and-contour';
+        }
       }
     }
   }

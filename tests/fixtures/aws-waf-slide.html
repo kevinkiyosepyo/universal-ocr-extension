@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>AWS split-image fixture</title>
+<style>body{font:16px Arial;margin:30px}awswaf-captcha{display:block;width:320px}</style>
+<form id="application"><button type="submit">Submit application</button></form><awswaf-captcha></awswaf-captcha>
+<script type="module">
+import * as adapter from '/aws-adapter.js';window.adapter=adapter;
+const mode=new URLSearchParams(location.search).get('mode')||'normal';
+window.counts={starts:0,moves:0,ends:0,verify:0,application:0,prevented:false};window.distance=0;
+document.querySelector('#application').addEventListener('submit',e=>{e.preventDefault();counts.application++});
+const host=document.querySelector('awswaf-captcha'),shadow=host.attachShadow({mode:'open'});
+shadow.innerHTML='<style>button{padding:8px;font:16px Arial;margin:10px 0}.element{width:320px}canvas{display:block}#track{width:320px;height:23px;background:#ddd;position:relative;margin:20px 0}img[alt=Slider]{position:absolute;height:46px;width:46px;margin-top:-10px;cursor:grab;margin-left:0}#root{display:block}</style><div id="root"><div class="amzn-captcha-modal"><form><div class="element"><p><span>Slide the image to complete the blue circle</span><input type="checkbox" id="zoomTargetObject"></p><div><canvas id="canvas" width="320" height="160"></canvas></div><div id="track" dir="ltr"><img alt="Slider" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2246%22 height=%2246%22%3E%3Crect width=%2246%22 height=%2246%22 rx=%2223%22 fill=%22%23666%22/%3E%3C/svg%3E"></div></div><button type="submit" id="amzn-btn-verify-internal">Confirm</button><div role="alert" style="display:none"></div></form></div></div>';
+const canvas=shadow.querySelector('canvas'),ctx=canvas.getContext('2d'),handle=shadow.querySelector('img'),track=shadow.querySelector('#track'),original=document.createElement('canvas');original.width=320;original.height=160;
+const p=original.getContext('2d');p.fillStyle='#eee';p.fillRect(0,0,320,160);p.fillStyle='blue';p.beginPath();p.arc(240,80,34,Math.PI,2*Math.PI);p.fill();p.beginPath();p.arc(80,80,34,0,Math.PI);p.fill();p.fillStyle='red';p.fillRect(30,25,30,30);p.fillStyle='green';p.fillRect(260,105,30,30);
+const draw=()=>{ctx.clearRect(0,0,320,160);ctx.drawImage(original,0,0,320,80,0,0,320,80);const shift=Math.trunc(distance*320/274),width=320-shift;if(shift)ctx.drawImage(original,width,80,shift,80,0,80,shift,80);ctx.drawImage(original,0,80,width,80,shift,80,width,80)};draw();
+let down=false,offset=0;
+handle.addEventListener('mousedown',event=>{event.preventDefault();down=true;offset=event.clientX-handle.getBoundingClientRect().x;counts.starts++});
+document.body.addEventListener('mousemove',event=>{if(!down)return;counts.moves++;distance=Math.max(0,Math.min(274,event.clientX-offset-track.getBoundingClientRect().x));handle.style.marginLeft=distance+'px';draw();if(mode==='refresh'&&counts.moves===3){p.fillStyle='black';p.fillRect(0,0,320,160);draw()}if(mode==='instruction'&&counts.moves===3)shadow.querySelector('p>span').textContent='Slide the image to complete the red box'});
+document.body.addEventListener('mouseup',()=>{if(down){counts.ends++;down=false}});
+shadow.querySelector('form').addEventListener('submit',event=>{counts.verify++;counts.prevented=event.defaultPrevented;event.preventDefault();window.accepted=Math.abs(distance-137)<1;shadow.querySelector('#root').innerHTML='<div>That is correct</div><div>Success!<img alt="Success" style="width:24px;height:24px" src="'+handle.src+'"></div>'});
+if(mode==='existing'){distance=20;handle.style.marginLeft='20px';draw()}
+if(mode==='scaled')host.style.transform='scale(.8)';if(mode==='reflected')host.style.transform='scaleX(-1)';
+window.host=host;window.shadow=shadow;window.canvas=canvas;window.handle=handle;window.track=track;window.ready=true;
+</script>

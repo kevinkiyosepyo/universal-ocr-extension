@@ -46,7 +46,7 @@ export function createSolverServer(config) {
           vision.available = result.ok && value.models?.some((model) => model.name === config.model);
           text.available = result.ok && value.models?.some(model => model.name === text.model);
         } catch { /* OCR and deterministic engines remain available. */ }
-        reply(response, 200, { status: 'ok', version: '2.4.0', vision, text, tasks: TASK_TYPES, queued: queue.pending.length, running: queue.active }); return;
+        reply(response, 200, { status: 'ok', version: '2.5.0', vision, text, tasks: TASK_TYPES, queued: queue.pending.length, running: queue.active }); return;
       }
       if (request.method === 'GET' && url.pathname === '/v1/metrics') { reply(response, 200, queue.metrics); return; }
       if (request.method === 'POST' && url.pathname === '/v1/tasks') {

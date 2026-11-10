@@ -73,3 +73,9 @@ An empty body hashes as an empty byte sequence. Reused nonces are rejected. The 
 `npm run setup:local` performs first-run model download and starts both services. `npm run start:all` starts and warms them afterward. The launcher never terminates a pre-existing service it did not start.
 
 `OCR_TEXT_MODEL` must use the GLM-OCR `Text Recognition:` interface. Set it to an empty string to retain the older vision-model code reader. `/health` reports `vision` and `text` availability separately. Use `npm run setup:local` after upgrading to download the dedicated text model.
+
+## Native provider outcomes
+
+The reCAPTCHA v3 adapter runs Google's documented client API in the page; it is not a local solver task type. A generic issued token ends at `token-issued` and is neither persisted nor passed to arbitrary site callbacks. Only the reviewed official demo includes a built-in backend verification step.
+
+AWS `puzzle-correct` means its SDK displayed a correct-puzzle screen. The SDK requests a token afterward, so this state does not count as token issuance or a submitted-form receipt. `widget-verified` requires the adapter's explicit provider receipt. The activity counter includes that state but excludes `token-issued` and `puzzle-correct`.

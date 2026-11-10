@@ -5,6 +5,7 @@ import { recordActivity } from './automation-background.js';
 import { CHALLENGE_ORIGINS, challengeProviders, challengeOrigins, providerURL, imageURL } from './challenge-common.js';
 import { browserPointer } from './browser-input.js';
 import { pixelCrop } from './geometry.js';
+import { recaptchaV3Native } from './recaptcha-v3.js';
 
 const prefix = 'challenge-session:';
 const running = new Map();
@@ -79,7 +80,7 @@ export async function challengeRoute(message, sender, isUI) {
       if (message.browserInput && (!message.autoVerify || !await api.permissions.contains({ permissions: ['debugger'] }))) throw new Error('Browser input requires the Browser Input build and Allow CAPTCHA completion.');
       if (!await api.permissions.contains({ permissions: ['webNavigation'], origins: challengeOrigins(providers) })) throw new Error('Grant access to the selected challenge provider first.');
       const { service } = await api.storage.local.get('service');
-      if (providers.some(id => !['prosopo', 'captchafox'].includes(id))) {
+      if (providers.some(id => !['prosopo', 'captchafox', 'recaptcha-v3'].includes(id))) {
         if (!service?.key) throw new Error('Connect the local recognition service in Settings first.');
         await new SolverClient(service).request('health', { retries: 0, signal: AbortSignal.timeout(6000) });
       }
@@ -97,6 +98,33 @@ export async function challengeRoute(message, sender, isUI) {
     await save(session); return publicSession(session);
   });
   const session = await check(message, sender);
+  if (message.type === 'CHALLENGE_NATIVE_V3') {
+    if (sender.frameId !== 0 || !session.providers.includes('recaptcha-v3') || !['inspect', 'execute'].includes(message.op)) throw new Error('Native v3 execution is unavailable for this frame.');
+    const invoke = async request => {
+      const results = await api.scripting.executeScript({ target: { tabId: sender.tab.id, frameIds: [0] }, world: 'MAIN', func: recaptchaV3Native, args: [request] });
+      const result = results?.[0]?.result;
+      if (!result) throw new Error('The native v3 request failed. The page may not declare a supported key and action.');
+      return result;
+    };
+    const plan = await invoke({ op: 'inspect' });
+    await check(message, sender);
+    if (message.op === 'inspect') return plan;
+    if (!session.autoVerify) throw new Error('Allow CAPTCHA completion before executing v3.');
+    const id = session.id + ':native-v3';
+    const controller = new AbortController();
+    controller.signal.addEventListener('abort', () => { void invoke({ op: 'cancel', requestId: session.id }).catch(() => {}); }, { once: true });
+    await locked(async () => {
+      await check(message, sender);
+      if (running.has(id)) throw new Error('A v3 request is already running.');
+      running.set(id, controller);
+    });
+    try {
+      const value = await invoke({ op: 'execute', expected: plan, requestId: session.id, timeoutMs: 20000 });
+      await check(message, sender);
+      if (controller.signal.aborted) throw new Error('The v3 request was stopped.');
+      return value;
+    } finally { running.delete(id); }
+  }
   if (message.type === 'CHALLENGE_CAPTURE') {
     if (sender.frameId !== 0 || message.provider !== 'captchafox' || !session.providers.includes(message.provider)) throw new Error('Screen capture is unavailable for this provider frame.');
     const { rect, viewport } = message;
@@ -130,7 +158,7 @@ export async function challengeRoute(message, sender, isUI) {
     return image;
   }
   if (message.type === 'CHALLENGE_POINTER') {
-    if (!session.autoVerify || !session.browserInput || sender.frameId !== 0 || !session.providers.includes(message.provider) || !['prosopo', 'captchafox', 'geetest-v3', 'geetest-v4', 'tencent'].includes(message.provider)) throw new Error('Browser pointer input is unavailable for this frame or provider.');
+    if (!session.autoVerify || !session.browserInput || sender.frameId !== 0 || !session.providers.includes(message.provider) || !['prosopo', 'captchafox', 'geetest-v3', 'geetest-v4', 'tencent', 'binance'].includes(message.provider)) throw new Error('Browser pointer input is unavailable for this frame or provider.');
     const id = session.id + ':pointer';
     if (running.has(id)) throw new Error('A pointer action is already running.');
     const controller = new AbortController(); running.set(id, controller);
@@ -157,11 +185,11 @@ export async function challengeRoute(message, sender, isUI) {
     return `data:${response.headers.get('content-type').split(';')[0]};base64,${btoa(binary)}`;
   }
   if (message.type === 'CHALLENGE_REPORT') {
-    if (!['recognizing', 'selecting', 'waiting-images', 'review', 'verifying', 'widget-verified', 'unsupported', 'failed'].includes(message.state)) throw new Error('Invalid challenge state.');
+    if (!['recognizing', 'selecting', 'waiting-images', 'review', 'verifying', 'widget-verified', 'token-issued', 'puzzle-correct', 'unsupported', 'failed'].includes(message.state)) throw new Error('Invalid challenge state.');
     return locked(async () => {
       const current = await check(message, sender);
       current.state = message.state; current.detail = String(message.detail || '').slice(0, 180);
-      if (['widget-verified', 'unsupported', 'failed'].includes(message.state)) {
+      if (['widget-verified', 'token-issued', 'puzzle-correct', 'unsupported', 'failed'].includes(message.state)) {
         current.active = false; screenCrops.delete(current.tabId);
         for (const [id, controller] of running) if (id.startsWith(current.id + ':')) controller.abort(new Error('Challenge session finished.'));
       }
@@ -169,20 +197,20 @@ export async function challengeRoute(message, sender, isUI) {
       // session state or activity; those retain status and timings only.
       const preview = message.state === 'review' && typeof message.preview === 'string' && message.preview.length <= 160 ? message.preview : undefined;
       await save(current); await notify(current, preview);
-      if (['review', 'widget-verified', 'unsupported', 'failed'].includes(message.state)) await recordActivity({ type: 'challenge', state: message.state, site: new URL(current.url).hostname, detail: current.detail });
+      if (['review', 'widget-verified', 'token-issued', 'puzzle-correct', 'unsupported', 'failed'].includes(message.state)) await recordActivity({ type: 'challenge', state: message.state, site: new URL(current.url).hostname, detail: current.detail });
       return { ...publicSession(current), ...(preview ? { preview } : {}) };
     });
   }
   if (message.type === 'CHALLENGE_SOLVE') {
     const task = validateTask(message.task);
-    const allowed = { 'recaptcha-v2': ['grid'], hcaptcha: ['grid', 'ocr', 'points'], mtcaptcha: ['captcha-text'], 'text-captcha': ['captcha-text'], 'geetest-v3': ['puzzle'], 'geetest-v4': ['puzzle'], tencent: ['puzzle'], captchafox: ['points'], tiktok: ['puzzle', 'points', 'rotate-ring'] };
+    const allowed = { 'recaptcha-v2': ['grid'], 'aws-waf': ['grid', 'points'], binance: ['puzzle', 'grid'], hcaptcha: ['grid', 'ocr', 'points'], mtcaptcha: ['captcha-text'], 'text-captcha': ['captcha-text'], 'geetest-v3': ['puzzle'], 'geetest-v4': ['puzzle', 'points'], tencent: ['puzzle'], captchafox: ['points'], tiktok: ['puzzle', 'points', 'rotate-ring'] };
     const provider = message.provider || 'recaptcha-v2';
     if (!session.providers.includes(provider) || !allowed[provider]?.includes(task.type)) throw new Error('This task does not belong to the selected provider.');
     imageBase64(task.image);
     const id = `${session.id}:${sender.frameId}`;
-    if (running.has(id)) throw new Error('This challenge already has a running task.');
-    await locked(async () => { const current = await check(message, sender); if (current.rounds >= 12) throw new Error('The challenge reached its round limit. Complete it manually.'); current.rounds++; await save(current); });
-    const controller = new AbortController(); running.set(id, controller); const started = Date.now();
+    const controller = new AbortController();
+    await locked(async () => { const current = await check(message, sender); if (running.has(id)) throw new Error('This challenge already has a running task.'); if (current.rounds >= 12) throw new Error('The challenge reached its round limit. Complete it manually.'); current.rounds++; await save(current); running.set(id, controller); });
+    const started = Date.now();
     try {
       const { service } = await api.storage.local.get('service');
       if (!service?.key) throw new Error('Connect the local recognition service in Settings to analyze this challenge.');

@@ -1,6 +1,9 @@
 import { visible, captureElement, fingerprint, assertControl } from './challenge-dom.js';
 import { hcaptchaPointsSnapshot } from './hcaptcha-points.js';
 import { tiktokSnapshot, tiktokVerified, tiktokFailure } from './tiktok-widget.js';
+import { awsWafSnapshot, awsWafStatus } from './aws-waf-widget.js';
+import { binanceSnapshot, binanceVerified, binanceFailure, binanceManagedSnapshot } from './binance-widget.js';
+import { geetestImagesSnapshot } from './geetest-images.js';
 
 const all = (root, selector) => [...root.querySelectorAll(selector)].filter(visible);
 const unique = (items, description) => {
@@ -8,6 +11,8 @@ const unique = (items, description) => {
   return items[0];
 };
 export function widgetSnapshot(providers) {
+  if (providers.includes('aws-waf')) { const value = awsWafSnapshot(); if (value) return value; }
+  if (providers.includes('binance')) { const value = binanceSnapshot(); if (value) return value; }
   if (providers.includes('tiktok')) {
     const tiktok = tiktokSnapshot();
     if (tiktok) return tiktok;
@@ -43,6 +48,7 @@ export function widgetSnapshot(providers) {
     }
   }
   if (providers.includes('geetest-v4')) {
+    const images = geetestImagesSnapshot(); if (images) return images;
     const root = unique(all(document, '.geetest_box .geetest_slide'), 'Geetest slider');
     if (root) {
       const image = unique(all(root, '.geetest_bg'), 'background'), reference = unique(all(root, '.geetest_slice_bg'), 'piece'), handle = unique(all(root, '.geetest_btn'), 'slider handle');
@@ -70,6 +76,7 @@ export function widgetSnapshot(providers) {
 }
 
 export function widgetVerified(providers) {
+  if (providers.includes('binance') && binanceVerified()) return true;
   if (providers.includes('tiktok') && tiktokVerified()) return true;
   if (providers.includes('tencent') && all(document, '#tCaptchaDyMainWrap .tencent-captcha-dy__verify-status-img--success').length) return true;
   for (const [provider, name] of [['prosopo', 'procaptcha-response'], ['captchafox', 'cf-captcha-response']]) {
@@ -82,6 +89,8 @@ export function widgetVerified(providers) {
 }
 
 export function widgetFailure(providers) {
+  if (providers.includes('binance')) { const failure = binanceFailure(); if (failure) return failure; }
+  if (providers.includes('aws-waf')) { const status = awsWafStatus(); if (status?.state === 'failed') return status.detail; }
   if (providers.includes('tiktok')) {
     const failure = tiktokFailure();
     if (failure) return failure;
@@ -96,6 +105,7 @@ export function widgetFailure(providers) {
 }
 
 export function managedSnapshot(providers) {
+  if (providers.includes('binance')) { const value = binanceManagedSnapshot(); if (value) return value; }
   if (providers.includes('captchafox')) {
     const checkbox = unique(all(document, '.cf-checkbox-box[role="checkbox"]'), 'CaptchaFox checkbox');
     if (checkbox) return { provider: 'captchafox', name: 'CaptchaFox', root: checkbox.parentElement, control: checkbox };

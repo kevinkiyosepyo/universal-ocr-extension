@@ -23,7 +23,13 @@ test('provider access is scoped to the selected adapter, including managed widge
  assert.equal(providerURL('https://verify.tiktok.com/captcha',['hcaptcha']),false);
  assert.equal(providerURL('https://tiktok.com.evil.test/captcha',['tiktok']),false);
  assert.equal(imageURL('https://other.example/image.png','https://lifeattiktok.com',['tiktok']),false);
- assert.throws(()=>challengeProviders(['recaptcha-v3']),/no challenge adapter/);
+ assert.deepEqual(challengeProviders(['recaptcha-v3','aws-waf','binance']),['recaptcha-v3','aws-waf','binance']);
+ assert.throws(()=>challengeProviders(['unknown']),/no challenge adapter/);
+ assert.equal(providerURL('https://a.captcha-sdk.awswaf.com/widget',['aws-waf']),true);
+ assert.equal(providerURL('https://awswaf.com.evil.example/widget',['aws-waf']),false);
+ assert.equal(imageURL('https://bin.bnbstatic.com/image/antibot/SLIDE/puzzle.png','https://example.org',['binance']),true);
+ assert.equal(imageURL('https://bin.bnbstatic.com/static/private.png','https://example.org',['binance']),false);
+ assert.equal(providerURL('https://bin.bnbstatic.com/image/antibot/SLIDE/puzzle.png',['binance']),false);
  assert.throws(()=>challengeProviders([]),/no challenge adapter/);
 });
 test('grid updates toggle only differences and reject out-of-range outputs',()=>{

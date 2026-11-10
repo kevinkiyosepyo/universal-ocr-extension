@@ -4,6 +4,8 @@ An independent, open-source browser extension and local recognition service. Rea
 
 ![Universal OCR workbench](docs/workbench.png)
 
+Version 2.5 adds native reCAPTCHA v3 actions, AWS WAF grids and split-image sliders, Binance sliders and one/two-page grids, and Geetest v4 ordered-icon and image-grid modes. Google's official v3 demo passed through the full extension in 425 ms. The other new modes have different evidence and limits; see the [2.5 verification report](docs/verification-2.5.md).
+
 Version 2.4 adds an experimental TikTok slider, circle-rotation, and same-shape-pair adapters, fixes the Geetest v3 popup layout, and reduces rotation and repeat-start work. TikTok live acceptance remains unverified. See the [2.4 verification report](docs/verification-2.4.md).
 
 Version 2.3 added bounded hCaptcha matching-shapes clicks, scaled-sprite capture, and brief success-marker handling. See the [2.3 verification report](docs/verification-2.3.md).
@@ -14,23 +16,23 @@ The referenced [CaptchaSonic repository](https://github.com/Captcha-Sonic/Captch
 
 ## CAPTCHA support status
 
-**This project does not support all CAPTCHA types advertised by CaptchaSonic.** This table describes version **2.4.0**. Detection, generic image tools, and local fixtures do not establish live provider acceptance.
+**This project does not support all CAPTCHA types advertised by CaptchaSonic.** This table describes version **2.5.0**. Detection, generic image tools, and local fixtures do not establish live provider acceptance.
 
 | CAPTCHA type / feature | Status | What works and what is missing |
 | --- | --- | --- |
 | PopularCaptcha (Image / Grid / BBox / Multi) | **Partial — hCaptcha grid subset** | CaptchaSonic uses this name for hCaptcha-style challenges. The hCaptcha grid and experimental matching-shapes adapters apply; live acceptance and other click/drag/video/token workflows remain unverified. |
 | reCAPTCHA v2 (Visible & Invisible) | **Partial — visible grids** | Capture, replacement tiles, multiple rounds, and optional Verify; one 2.1 public-demo success. Invisible flows, audio, and other modes remain unverified. |
-| reCAPTCHA v3 | **Not integrated** | Detection only; no provider-issued score or token workflow. |
-| AWS WAF CAPTCHA | **Not integrated** | Detection and generic tools; needs a provider adapter and test deployment. |
+| reCAPTCHA v3 | **Official demo verified** | Native declared action and real Google-issued response; official demo server accepted score 0.9. Other sites remain token-issued until their own backend integration verifies them. |
+| AWS WAF CAPTCHA | **Experimental — SDK fixtures** | English 9/12/16-cell grids and split-image sliders; scoped provider Confirm and multiple rounds. No usable hosted test challenge was found; live token issuance remains unverified. Path-dot and audio modes are unsupported. |
 | Geetest v3 (Slide / Click) | **Partial — slider fixtures** | Reconstructed canvas capture and current popup layout pass local tests. The official demo stopped on uncertain recognition; live acceptance and click modes are missing. |
-| Geetest v4 (Slide) | **Partial — live rejection** | CSS capture, texture/outline matching, and slider input; official demo rejected verification. |
+| Geetest v4 (Slide / Icons / Grid) | **Partial — live unverified** | Slider, ordered reference icons, and 3×3 reference-image grids have guarded adapters. Official slider rejected verification; image-mode recognition and acceptance remain unreliable. |
 | BLS OCR / Text CAPTCHA | **Partial — text recognition** | Dedicated local code model and field pairing; distorted codes can still be wrong. BLS acceptance unverified. |
 | MTCaptcha | **Partial — live unverified** | Image capture, field fill, and one missing-character retry; fresh demo acceptance was not confirmed. |
 | CaptchaFox | **Object-slider demo verified** | Native checkbox and object slider passed with Browser Input; other modes/sites unverified. |
 | Tencent CAPTCHA | **Partial — slider fixtures** | Sprite capture and slider adapter pass local tests, including scaled layouts. The official demo verified its checkbox without showing a puzzle; live slider acceptance remains unverified. |
 | TikTok CAPTCHA | **Experimental — SDK fixtures** | Slider, concentric-circle alignment, and English same-shape-pair adapters; blob capture, cancellation, and exact success-marker handling. Live acceptance and other click modes remain unverified or unsupported. |
 | Prosopo / Procaptcha | **Proof-of-work demo verified** | Native flow passed with Browser Input and a provider response; other modes unverified. |
-| Binance CAPTCHA | **Not integrated** | Detection and generic tools; needs a provider adapter and test page. |
+| Binance CAPTCHA | **Partial — standalone slider accepted** | Slider, native checkbox, and one/two-page 3×3 grids. Two standalone SDK slider tests were accepted; full-extension acceptance and live grid acceptance remain unverified. |
 | Universal OCR | **Working — general text** | Offline OCR in seven languages, uploads, region capture, and editable results; not universal accuracy on distorted text or handwriting. |
 
 **Additional adapter:** hCaptcha image grids and static matching-shapes clicks have browser fixture coverage. Point mode checks the exact instruction and count, preserves existing selections, and stops on changing or obscured canvases. Live acceptance remains unverified; other click, drawing, drag, and video modes are unsupported.
@@ -39,7 +41,7 @@ The referenced [CaptchaSonic repository](https://github.com/Captcha-Sonic/Captch
 
 ## Install the extension
 
-1. Download and extract the v2.4.0 ZIP for your browser from [Releases](https://github.com/kevinkiyosepyo/universal-ocr-extension/releases/tag/v2.4.0).
+1. Download and extract the v2.5.0 ZIP for your browser from [Releases](https://github.com/kevinkiyosepyo/universal-ocr-extension/releases/tag/v2.5.0).
 2. **Chrome / Brave / Chromium:** open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
 3. **Edge:** use `edge://extensions` and the Edge package with the same steps.
 4. **Firefox 140+:** open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select the extracted `manifest.json`. This unsigned build must be reloaded after restarting Firefox; permanent installation requires Mozilla signing.
@@ -62,7 +64,7 @@ OCR works best on printed text. Handwriting, distorted text, unusual fonts, and 
 
 ## Start all local tools
 
-Install Node.js 22+ and [Ollama](https://ollama.com/). From this checkout, run once:
+Install Node.js 22 or 24 LTS and [Ollama](https://ollama.com/). From this checkout, run once:
 
 ```sh
 npm ci
@@ -128,6 +130,13 @@ npm run test:automation
 npm run test:challenges
 npm run test:points
 npm run test:tiktok
+npm run test:recaptcha-v3
+npm run test:aws-waf
+npm run test:aws-waf-slide
+npm run test:binance
+npm run test:geetest-images
+npm run test:provider-routes
+npm run test:challenge-stop
 npm run test:widgets
 npm run test:browser-input
 npm run test:firefox

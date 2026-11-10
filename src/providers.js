@@ -3,7 +3,7 @@ export const PROVIDERS = [
   { id: 'recaptcha-v2', name: 'reCAPTCHA v2', selectors: ['.g-recaptcha:not([data-action])', 'iframe[src*="recaptcha"][src*="anchor"]', '.rc-imageselect'], hosts: ['google.com', 'recaptcha.net'], mode: 'widget' },
   { id: 'recaptcha-v3', name: 'reCAPTCHA v3', selectors: ['.g-recaptcha[data-action]', 'script[src*="/recaptcha/api.js"]', 'script[src*="/recaptcha/enterprise.js"]'], hosts: ['google.com', 'recaptcha.net'], mode: 'provider-token' },
   { id: 'hcaptcha', name: 'hCaptcha / grids and matching shapes', selectors: ['.h-captcha', 'iframe[src*="hcaptcha.com"]'], hosts: ['hcaptcha.com'], mode: 'widget' },
-  { id: 'aws-waf', name: 'AWS WAF CAPTCHA', selectors: ['#aws-waf-captcha-container', 'script[src*="captcha-sdk.awswaf.com"]', 'iframe[src*="awswaf.com"]'], hosts: ['awswaf.com'], mode: 'widget' },
+  { id: 'aws-waf', name: 'AWS WAF CAPTCHA', selectors: ['awswaf-captcha', '#aws-waf-captcha-container', 'script[src*="captcha-sdk.awswaf.com"]', 'iframe[src*="awswaf.com"]'], hosts: ['awswaf.com'], mode: 'widget' },
   { id: 'geetest-v3', name: 'Geetest v3', selectors: ['.geetest_panel', '.geetest_holder', '.geetest_slider'], hosts: ['geetest.com'], mode: 'widget' },
   { id: 'geetest-v4', name: 'Geetest v4', selectors: ['.geetest_box', '.geetest_captcha', '[class*="geetest_ques"]'], hosts: ['geetest.com', 'geevisit.com'], mode: 'widget' },
   { id: 'bls-text', name: 'BLS / text images', selectors: ['img[id*="captcha" i]', 'img[src*="captcha" i]', 'canvas[id*="captcha" i]'], hosts: [], mode: 'ocr-rule' },
@@ -12,7 +12,7 @@ export const PROVIDERS = [
   { id: 'tencent', name: 'Tencent CAPTCHA', selectors: ['#tCaptchaDyMainWrap', '#tcaptcha_iframe', 'iframe[src*="captcha.gtimg.com"]', 'iframe[src*="turing.captcha.qcloud.com"]'], hosts: ['captcha.gtimg.com', 'turing.captcha.qcloud.com', 'ca.turing.captcha.qcloud.com'], mode: 'widget' },
   { id: 'tiktok', name: 'TikTok CAPTCHA', selectors: ['#captcha-verify-container-main-page', '.captcha-verify-container', '#captcha-verify-container', '.captcha_verify_container', '[class*="secsdk-captcha"]'], hosts: ['tiktok.com'], mode: 'widget' },
   { id: 'prosopo', name: 'Prosopo / Procaptcha', selectors: ['.procaptcha', '.prosopo-checkbox', '.prosopo-widget__content', 'iframe[src*="prosopo"]', 'script[src*="procaptcha"]'], hosts: ['prosopo.io'], mode: 'provider-token' },
-  { id: 'binance', name: 'Binance CAPTCHA', selectors: ['#bcap-root', '[class*="bcap-"]', 'iframe[src*="captcha"][src*="binance"]'], hosts: ['binance.com'], mode: 'widget' },
+  { id: 'binance', name: 'Binance CAPTCHA', selectors: ['.bcapc-popup', '#bcap-root', '[class*="bcap-"]', 'iframe[src*="captcha"][src*="binance"]'], hosts: ['binance.com'], mode: 'widget' },
 ];
 
 export function scoreScript(value) {

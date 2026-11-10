@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><title>AWS WAF adapter fixture</title>
+<style>body{font:16px Arial;margin:24px}awswaf-captcha{display:block;width:320px}#captcha-container{width:320px}</style>
+<form id="application"><button type="submit">Submit application</button></form><div id="mount"></div>
+<script type="module">
+import * as adapter from '/aws-adapter.js';
+window.adapter=adapter;
+const mode=new URLSearchParams(location.search).get('mode')||'grid',count=Number(new URLSearchParams(location.search).get('count')||9),columns=count<=12?3:4,rows=count===9?3:4,size=(320-4*(columns-1))/columns;
+window.counts={clicks:[],verify:0,application:0,prevented:false};
+document.querySelector('#application').addEventListener('submit',event=>{event.preventDefault();counts.application++});
+const host=document.createElement(mode==='interstitial'?'div':'awswaf-captcha');
+if(mode==='interstitial'){host.id='captcha-container';const marker=document.createElement('script');marker.src='https://fixture.captcha-sdk.awswaf.com/example/captcha.js';marker.type='application/json';document.head.append(marker)}
+document.querySelector('#mount').append(host);
+const shadow=mode==='interstitial'?host:host.attachShadow({mode:'open'});
+shadow.innerHTML='<style>.amzn-captcha-modal{width:320px}canvas{display:block}button{font:16px Arial;padding:8px;margin-top:10px}#root{display:block}[role=alert]{display:none}</style><div id="root"><div class="amzn-captcha-modal"><form><div class="amzn-captcha-modal-title">Solve the puzzle</div><div id="puzzle"><div id="scene"><div id="instruction">Choose all <em>blue circles</em></div><div style="position:relative"><canvas></canvas><div class="amzn-grid-focus"></div></div><div role="status"></div></div></div><div role="alert"></div><div><button type="submit" id="amzn-btn-verify-internal">Confirm</button></div></form></div></div>';
+const canvas=shadow.querySelector('canvas'),context=canvas.getContext('2d'),form=shadow.querySelector('form');canvas.width=320;canvas.height=rows*size+4*(rows-1);
+const originals=Array.from({length:count},(_,i)=>{const c=document.createElement('canvas');c.width=c.height=150;const p=c.getContext('2d'),gradient=p.createLinearGradient(0,0,150,150);gradient.addColorStop(0,`hsl(${i*33},40%,80%)`);gradient.addColorStop(1,`hsl(${i*33+40},55%,48%)`);p.fillStyle=gradient;p.fillRect(0,0,150,150);p.fillStyle=i%3===0?'blue':'#b64a20';p.beginPath();p.arc(75,75,38,0,2*Math.PI);p.fill();return c;});
+for(let i=0;i<count;i++){const button=document.createElement('button');button.type='button';button.role='checkbox';button.setAttribute('aria-checked','false');button.setAttribute('aria-label',`Image ${i+1}`);button.textContent=i+1;canvas.append(button)}
+const draw=()=>{context.clearRect(0,0,canvas.width,canvas.height);for(let i=0;i<count;i++){const checked=canvas.children[i].getAttribute('aria-checked')==='true',x=i%columns*(size+4),y=Math.floor(i/columns)*(size+4),padding=checked?size/8:0;context.drawImage(originals[i],x+padding,y+padding,checked?size*.75:size,checked?size*.75:size);if(checked){context.strokeStyle='#dd6b10';context.lineWidth=2;context.strokeRect(x+padding,y+padding,size*.75,size*.75)}}};
+window.refresh=(index=0)=>{const p=originals[index].getContext('2d');p.fillStyle='black';p.fillRect(0,0,150,150);draw()};
+canvas.addEventListener('click',event=>{const r=canvas.getBoundingClientRect(),index=Math.floor((event.clientY-r.y)/(size+4))*columns+Math.floor((event.clientX-r.x)/(size+4));if(index<0||index>=count)return;counts.clicks.push(index);const child=canvas.children[index];child.setAttribute('aria-checked',child.getAttribute('aria-checked')==='true'?'false':'true');draw();if(mode==='refresh')refresh(0);if(mode==='prompt')shadow.querySelector('#instruction').textContent='Choose all boats';if(mode==='reselect')canvas.children[index].setAttribute('aria-checked','false');});
+form.addEventListener('submit',event=>{counts.verify++;counts.prevented=event.defaultPrevented;event.preventDefault();if(mode==='reject'){const alert=shadow.querySelector('[role=alert]');alert.textContent='Incorrect. Please try again.';alert.style.display='block'}else if(mode==='rounds'&&counts.verify<2){for(const child of canvas.children)child.setAttribute('aria-checked','false');refresh(0)}else if(mode==='gone'){shadow.querySelector('#root').remove()}else showSuccess()});
+window.showSuccess=()=>{shadow.querySelector('#root').innerHTML='<div>That is correct</div><div style="height:150px"><img alt="Success" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22green%22/%3E%3C/svg%3E">Success!</div><div>You will be redirected shortly</div>'};
+draw();
+if(mode==='scaled')host.style.transform='scale(.8)';
+if(mode==='existing'){canvas.children[1].setAttribute('aria-checked','true');draw()}
+if(mode==='unknown'){for(const child of [...canvas.children])child.remove()}
+window.host=host;window.shadow=shadow;window.canvas=canvas;window.ready=true;
+</script>

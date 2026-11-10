@@ -33,3 +33,39 @@ test('puzzle matching searches both axes and rejects uninformative references', 
   assert.throws(() => matchPuzzle(sample.image, sample.piece, { y: 1 }), error => error.code === 'INVALID_TASK' && /outside the background/.test(error.message));
   assert.throws(() => validateTask({ type: 'puzzle', image: 'AAAA', reference: 'AAAA', y: 9 }), /normalized/);
 });
+
+function repeatedLogoFixture({ contours = [135], unrelated = false, padding = 3 } = {}) {
+  const width = 310, height = 160, pieceWidth = 60 + padding - 3, pieceHeight = height, top = 61;
+  const image = { width, height, data: Buffer.alloc(width * height * 4) };
+  const piece = { width: pieceWidth, height: pieceHeight, data: Buffer.alloc(pieceWidth * pieceHeight * 4) };
+  const texture = (x, y) => 112 + 38 * Math.sin(x * Math.PI * 2 / 70) + 26 * Math.cos((x + y) * Math.PI * 2 / 35) + 18 * Math.sin(y * .27);
+  const mask = (x, y) => ((x >= 5 && x <= 45 && y >= 9 && y <= 48) || ((x - 25) ** 2 + (y - 9) ** 2 <= 8 ** 2) || ((x - 45) ** 2 + (y - 29) ** 2 <= 8 ** 2)) && (x - 5) ** 2 + (y - 28) ** 2 > 7 ** 2;
+  const boundary = (x, y) => mask(x, y) && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !mask(x + dx, y + dy));
+  const write = (target, x, y, value) => { const offset = (y * target.width + x) * 4; target.data[offset] = target.data[offset + 1] = target.data[offset + 2] = Math.round(value); target.data[offset + 3] = 255; };
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) write(image, x, y, texture(x, y));
+  for (let y = 0; y < 54; y++) for (let x = 0; x < 55; x++) if (mask(x, y)) write(piece, x + padding, y + top, texture(x + 135, y + top));
+  for (const origin of contours) for (let y = 0; y < 54; y++) for (let x = 0; x < 55; x++) if (mask(x, y)) {
+    const value = unrelated ? 80 + 25 * Math.cos(x * 1.7 + y * .9) : texture(x + origin, y + top) * .45;
+    write(image, x + origin, y + top, boundary(x, y) ? 245 : value);
+  }
+  return { image, piece, expected: 135 - padding };
+}
+
+test('an independent cutout contour resolves repeated high-correlation logo textures', () => {
+  for (const padding of [3, 11]) {
+    const sample = repeatedLogoFixture({ padding }), result = matchPuzzle(sample.image, sample.piece, { y: 0 });
+    assert.equal(result.x, sample.expected, JSON.stringify(result)); assert.equal(result.y, 0);
+    assert.equal(result.normalizedX, sample.expected / sample.image.width);
+    assert.equal(result.method, 'texture-and-contour'); assert.ok(result.confidence >= .85, JSON.stringify(result));
+  }
+});
+
+test('repeated textures stay uncertain without one independently corroborated contour', () => {
+  for (const options of [{ contours: [] }, { contours: [65, 135] }, { unrelated: true }]) {
+    const sample = repeatedLogoFixture(options);
+    let result;
+    try { result = matchPuzzle(sample.image, sample.piece, { y: 0 }); }
+    catch (error) { assert.equal(error.code, 'UNCERTAIN_IMAGE'); continue; }
+    assert.ok(result.confidence < .85, `${JSON.stringify(options)}: ${JSON.stringify(result)}`);
+  }
+});

@@ -4,6 +4,9 @@ import { gridChanges } from './challenge-common.js';
 import { widgetSnapshot, captureWidget, applyText, applyPuzzle, puzzleDrag, widgetVerified, widgetFailure, managedSnapshot, startManaged, textFeedback } from './challenge-widgets.js';
 import { capturePointHeader, resolvePointInstruction, pointSelection, applyPointSelection, pointSceneMatches } from './hcaptcha-points.js';
 import { captureTikTok, applyTikTok, previewTikTok } from './tiktok-widget.js';
+import { captureAwsWaf, applyAwsWaf, previewAwsWaf, awsWafStatus, observeAwsWafStatus } from './aws-waf-widget.js';
+import { captureBinance, applyBinance, previewBinance } from './binance-widget.js';
+import { captureGeetestImages, previewGeetestImages, applyGeetestImages } from './geetest-images.js';
 
 if (globalThis.__universalChallenge) {
   void globalThis.__universalChallenge();
@@ -12,7 +15,10 @@ if (globalThis.__universalChallenge) {
   let session, busy = false, timer, stopped = true, generation = 0, hud, status;
   let lastFingerprint, lastActionAt = 0, lastVerified, lastStable, stableAt = 0, staleCount = 0, managed, textAttempt, widgetPendingAt = 0;
   let successSeen = false, successObserver;
+  let awsStatus, disconnectAws;
   let pointAttempt;
+  let v3Started = false;
+  let binancePageTransition;
   const cache = new Map();
   const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
   const send = async (type, payload = {}) => {
@@ -39,11 +45,15 @@ if (globalThis.__universalChallenge) {
   async function report(state, detail, preview) { const value = await send('CHALLENGE_REPORT', { state, detail, preview }); show(value); return value; }
   function resetSuccessObserver() {
     successObserver?.disconnect(); successObserver = undefined; successSeen = false;
+    disconnectAws?.(); disconnectAws = undefined; awsStatus = undefined;
   }
   function observeProviderSuccess() {
-    const observed = session.providers.filter(provider => ['tencent', 'tiktok'].includes(provider));
-    if (!observed.length) return;
     const expected = generation, id = session.id;
+    if (session.providers.includes('aws-waf')) disconnectAws = observeAwsWafStatus(value => {
+      if (!stopped && generation === expected && session?.id === id && session.active) awsStatus = value;
+    });
+    const observed = session.providers.filter(provider => ['tencent', 'tiktok', 'binance'].includes(provider));
+    if (!observed.length) return;
     // Provider dialogs can remove their success marker before the next poll.
     // Latch only an observed marker from this active session; no DOM writes or
     // reporting occur in this callback, so HUD changes cannot cause a loop.
@@ -64,13 +74,46 @@ if (globalThis.__universalChallenge) {
     busy = true; const expected = generation;
     try {
       if (!await current(expected)) return;
+      if (session.providers.includes('aws-waf')) {
+        const status = awsStatus || awsWafStatus();
+        if (status?.state === 'puzzle-correct') { await report(status.state, status.detail); stopped = true; resetSuccessObserver(); return; }
+        if (status?.state === 'failed') throw new Error(status.detail);
+      }
       if (successSeen || verifiedWidget(session.providers) || widgetVerified(session.providers)) { await report('widget-verified', 'The widget reports verification complete. This is not an application receipt.'); stopped = true; resetSuccessObserver(); return; }
+      if (session.providers.includes('recaptcha-v3') && window === window.top && !v3Started) {
+        v3Started = true;
+        const plan = await send('CHALLENGE_NATIVE_V3', { op: 'inspect' });
+        if (!await current(expected)) return;
+        if (!session.autoVerify) { await report('review', `reCAPTCHA v3 action ${plan.action} is ready. Enable CAPTCHA completion to request a provider-issued token.`); return; }
+        await report('verifying', 'Requesting native reCAPTCHA v3 verification…');
+        const result = await send('CHALLENGE_NATIVE_V3', { op: 'execute' });
+        if (!await current(expected)) return;
+        if (result.state === 'server-verified') await report('widget-verified', `Google’s official demo verified reCAPTCHA v3 with score ${result.receipt.score}. No form was submitted.`);
+        else if (result.state === 'token-issued') await report('token-issued', 'Google issued a v3 token. The site’s server has not verified it; no form or site callback was invoked.');
+        else throw new Error('The official v3 verification endpoint did not accept this request.');
+        stopped = true; resetSuccessObserver(); return;
+      }
       const failed = widgetFailure(session.providers); if (failed) throw new Error(failed);
       if (pointAttempt && Date.now() - pointAttempt.at > 12_000) throw new Error('The provider has not confirmed the point selection. Review the challenge manually.');
+      if (binancePageTransition && Date.now() - binancePageTransition.at > 5000) throw new Error('Binance did not display the expected second page. Review the challenge manually.');
       if (widgetPendingAt && Date.now() - widgetPendingAt > 12_000) throw new Error('The provider has not confirmed verification. Review the challenge manually.');
       // A drag changes the captured pixels. Wait for its receipt instead of
       // analyzing the moved objects as if they were a brand-new challenge.
-      if (widgetPendingAt && !textAttempt) return;
+      if (widgetPendingAt && !textAttempt) {
+        if (session.providers.includes('aws-waf')) {
+          const next = widgetSnapshot(['aws-waf']);
+          const readyGrid = next?.type === 'grid' && next.tiles.every(tile => tile.getAttribute('aria-checked') === 'false');
+          const readySplit = next?.subtype === 'bifurcated' && Math.abs(parseFloat(getComputedStyle(next.handle).marginLeft) || 0) < .5;
+          if (readyGrid || readySplit) {
+            const captured = await captureAwsWaf(next);
+            if (!await current(expected)) return;
+            if (captured.fingerprint !== lastFingerprint) {
+              widgetPendingAt = 0; lastVerified = null; lastStable = captured.fingerprint; stableAt = Date.now();
+            }
+          }
+        }
+        return;
+      }
       const native = managedSnapshot(session.providers);
       if (native && !managed) {
         managed = { startedAt: Date.now(), control: native.control, started: session.autoVerify };
@@ -83,7 +126,7 @@ if (globalThis.__universalChallenge) {
       }
       if (managed?.started && !lastActionAt && Date.now() - managed.startedAt > 30_000) throw new Error('The provider has not confirmed verification. Complete any challenge it shows manually.');
       const widget = widgetSnapshot(session.providers);
-      if (widget) { if (widget.mode === 'tiktok') await handleTikTok(widget, expected); else if (widget.mode === 'point-click') await handlePoints(widget, expected); else await handleWidget(widget, expected); return; }
+      if (widget) { if (['tiktok', 'aws-waf', 'binance', 'geetest-images'].includes(widget.mode)) await handleStructured(widget, expected); else if (widget.mode === 'point-click') await handlePoints(widget, expected); else await handleWidget(widget, expected); return; }
       const challenge = snapshot();
       if (!challenge) return;
       if (!session.providers.includes(challenge.provider)) return;
@@ -123,6 +166,7 @@ if (globalThis.__universalChallenge) {
       if (session.autoVerify) {
         if (!await current(expected)) return;
         await report('verifying', 'Waiting for the provider to verify the challenge…');
+        if (!await current(expected)) return;
         verifyChallenge(latest); lastVerified = captured.fingerprint;
       } else {
         await report('review', 'Selections ready. Review the grid, then press its Verify or Next button.');
@@ -169,28 +213,48 @@ if (globalThis.__universalChallenge) {
     pointAttempt = { image, points, at: Date.now() };
     await report('verifying', 'Points selected. Waiting for the provider or the next challenge round…');
   }
-  async function handleTikTok(challenge, expected) {
-    const capture = value => captureTikTok(value, url => send('CHALLENGE_FETCH', { url }), cache);
-    const captured = await capture(challenge);
+  async function handleStructured(challenge, expected) {
+    if (binancePageTransition && challenge.provider === 'binance') {
+      if (challenge.root !== binancePageTransition.root || challenge.type !== 'grid' || challenge.pages !== 2) throw new Error('The Binance grid changed while moving to its second page.');
+      if (challenge.page === 1) return;
+      if (challenge.page !== 2) throw new Error('The Binance grid page is unsupported.');
+      binancePageTransition = undefined;
+    }
+    const adapters = { tiktok: [captureTikTok, previewTikTok, applyTikTok], 'aws-waf': [captureAwsWaf, previewAwsWaf, applyAwsWaf], binance: [captureBinance, previewBinance, applyBinance], 'geetest-images': [captureGeetestImages, previewGeetestImages, applyGeetestImages] };
+    const [captureAdapter, previewAdapter, applyAdapter] = adapters[challenge.mode];
+    const capture = value => captureAdapter(value, url => send('CHALLENGE_FETCH', { url }), cache);
+    let captured;
+    try { captured = await capture(challenge); }
+    catch (error) {
+      // Opening animations may move a widget while its images decode. Retry
+      // only this pre-input capture, with the same bounded freshness budget.
+      if (!lastActionAt && /changed during capture\.$/.test(error.message) && ++staleCount < 4) { lastStable = null; return; }
+      throw error;
+    }
     if (!await current(expected)) return;
     if (lastStable !== captured.fingerprint) { lastStable = captured.fingerprint; stableAt = Date.now(); return; }
     if (Date.now() - stableAt < 350 || lastFingerprint === captured.fingerprint) return;
-    await report('recognizing', 'Reading the TikTok challenge…');
-    const solution = await send('CHALLENGE_SOLVE', { provider: 'tiktok', task: captured.task });
+    await report('recognizing', `Reading the ${challenge.name} challenge…`);
+    const solution = await send('CHALLENGE_SOLVE', { provider: challenge.provider, task: captured.task });
     if (!await current(expected)) return;
     const latest = widgetSnapshot(session.providers);
-    const same = latest?.mode === 'tiktok' && latest.root === challenge.root && latest.image === challenge.image && latest.handle === challenge.handle && latest.verify === challenge.verify && (await capture(latest)).fingerprint === captured.fingerprint;
+    const same = latest?.mode === challenge.mode && latest.root === challenge.root && latest.image === challenge.image && latest.handle === challenge.handle && latest.verify === challenge.verify && (await capture(latest)).fingerprint === captured.fingerprint;
     if (!await current(expected)) return;
     if (!same) {
       if (++staleCount >= 4) throw new Error('The challenge keeps changing. Wait for it to settle and start again.');
       return;
     }
-    const preview = previewTikTok(latest, solution);
+    const preview = previewAdapter(latest, solution);
     staleCount = 0; lastFingerprint = captured.fingerprint; lastActionAt = Date.now();
-    if (!session.autoVerify) { await report('review', 'TikTok result ready for review. No input was applied.', preview); return; }
-    await applyTikTok(latest, solution, () => current(expected));
+    if (!session.autoVerify) { await report('review', `${challenge.name} result ready for review. No input was applied.`, preview); return; }
+    const applied = await applyAdapter(latest, solution, () => current(expected));
+    if (latest.provider === 'binance' && applied?.nextPage) {
+      if (applied.page !== 1 || applied.pages !== 2) throw new Error('The Binance page transition is unsupported.');
+      binancePageTransition = { root: latest.root, at: Date.now() };
+      await report('waiting-images', 'Waiting for the second Binance grid page…'); return;
+    }
     widgetPendingAt = Date.now(); lastVerified = captured.fingerprint;
-    await report('verifying', 'Answer applied. Waiting for TikTok to confirm verification…');
+    await report('verifying', `Answer applied. Waiting for ${challenge.name} to confirm verification…`);
   }
   async function handleWidget(challenge, expected) {
     const capture = value => captureWidget(value, url => send('CHALLENGE_FETCH', { url }), cache, rect => send('CHALLENGE_CAPTURE', { provider: value.provider, rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }, viewport: { width: innerWidth, height: innerHeight } }));
@@ -242,7 +306,7 @@ if (globalThis.__universalChallenge) {
     } else await report('review', 'Code entered. Review it before continuing; verification is not confirmed.');
   }
   async function start() {
-    resetSuccessObserver(); clearInterval(timer); generation++; stopped = false; pointAttempt = null; lastFingerprint = lastVerified = lastStable = managed = textAttempt = null; lastActionAt = stableAt = staleCount = widgetPendingAt = 0; cache.clear();
+    resetSuccessObserver(); clearInterval(timer); generation++; stopped = false; v3Started = false; binancePageTransition = undefined; pointAttempt = null; lastFingerprint = lastVerified = lastStable = managed = textAttempt = null; lastActionAt = stableAt = staleCount = widgetPendingAt = 0; cache.clear();
     const expected = generation;
     try {
       const next = await send('CHALLENGE_HELLO');

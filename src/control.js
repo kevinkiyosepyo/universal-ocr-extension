@@ -79,17 +79,20 @@ async function refresh() {
   $('automation-enabled').checked = automationEnabled; $('automation-state').textContent = automationEnabled ? 'Enabled' : 'Paused'; $('rule-list').replaceChildren();
   if (!rules.length) $('rule-list').append(node('p', 'No rules yet. Create a rule below to get started.', 'muted'));
   for (const rule of rules) { const row = node('article', ''); const description = node('div', ''); description.append(node('h3', rule.name), node('p', `${rule.origin} · ${rule.type} · ${rule.enabled ? 'Enabled' : 'Disabled'}`, 'muted')); const actions = node('div', '', 'button-row'); const edit = node('button', 'Edit', 'secondary'), remove = node('button', 'Delete', 'text-button'); edit.addEventListener('click', () => editRule(rule)); remove.addEventListener('click', protect(async () => { await send({ type: 'DELETE_RULE', id: rule.id }); await refresh(); })); actions.append(edit, remove); row.append(description, actions); $('rule-list').append(row); }
-  $('activity-stats').replaceChildren(); for (const [label, state] of [['Recognized', 'recognized'], ['Applied', 'applied'], ['Verified', 'verified'], ['Failed', 'failed']]) { const stat = node('div', '', 'stat'); stat.append(node('b', activity.filter((item) => item.state === state).length), node('span', label)); $('activity-stats').append(stat); }
+  $('activity-stats').replaceChildren(); for (const [label, state] of [['Recognized', 'recognized'], ['Applied', 'applied'], ['Verified', 'verified'], ['Failed', 'failed']]) { const stat = node('div', '', 'stat'); stat.append(node('b', activity.filter((item) => item.state === state || (state === 'verified' && item.state === 'widget-verified')).length), node('span', label)); $('activity-stats').append(stat); }
   $('activity-rows').replaceChildren(); for (const item of activity) { const row = node('tr', ''); for (const value of [new Date(item.at).toLocaleTimeString(), item.site || 'Workbench', item.type, item.state + (item.detail ? ` · ${item.detail}` : ''), `${Math.round(item.confidence * 100)}%`, item.durationMs ? `${(item.durationMs / 1000).toFixed(1)}s` : '—']) row.append(node('td', value)); $('activity-rows').append(row); }
 }
 $('clear-activity').addEventListener('click', protect(async () => { await send({ type: 'CLEAR_ACTIVITY' }); await refresh(); }));
 const capabilities = {
+  'recaptcha-v3': 'Native declared actions; Google demo server verified. Other sites issue tokens only; their server callbacks need site-specific integration',
+  'aws-waf': 'Experimental English image grids and split-image sliders; live acceptance and token issuance unverified',
+  binance: 'SDK slider, native checkbox and one/two-page grids; standalone slider accepted, full-extension acceptance unverified',
   'recaptcha-v2': 'Visible image grids, dynamic replacements, and multiple rounds; invisible flows unverified',
   hcaptcha: 'Image grids and experimental static matching-shapes clicks; live acceptance unverified',
   mtcaptcha: 'Text reading, field fill, one missing-character retry; live acceptance not confirmed',
   'bls-text': 'Unambiguous text-image field pairing; BLS sites unverified',
   'geetest-v3': 'Canvas slider adapter; official demo stopped on uncertain recognition',
-  'geetest-v4': 'Texture and outline matching; official demo rejected verification',
+  'geetest-v4': 'Slider, ordered-icon and reference-grid adapters; official tests have not confirmed reliable acceptance',
   prosopo: 'Native proof of work: official demo passed using the Chromium Browser Input build; other modes unverified',
   captchafox: 'Object slider passed the official demo using the Chromium Browser Input build; other modes unverified',
   tencent: 'Sprite slider adapter; official DOM inspected, acceptance unverified',

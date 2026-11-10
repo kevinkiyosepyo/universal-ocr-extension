@@ -1,4 +1,7 @@
 export const PROVIDER_ORIGINS = {
+  'recaptcha-v3': ['https://www.google.com/*', 'https://recaptcha.google.com/*', 'https://www.recaptcha.net/*', 'https://www.gstatic.com/*'],
+  'aws-waf': ['https://*.awswaf.com/*'],
+  binance: ['https://*.binance.com/*', 'https://bin.bnbstatic.com/*'],
   'recaptcha-v2': [
   'https://www.google.com/*', 'https://recaptcha.google.com/*',
   'https://www.recaptcha.net/*', 'https://www.gstatic.com/*',
@@ -25,7 +28,9 @@ export function providerURL(value, providers = Object.keys(PROVIDER_ORIGINS)) {
   try {
     const url = new URL(value);
     if (url.protocol !== 'https:' || url.username || url.password) return false;
-    return (providers.includes('recaptcha-v2') && ['www.google.com', 'recaptcha.google.com', 'www.recaptcha.net'].includes(url.hostname) && url.pathname.startsWith('/recaptcha/')) ||
+    return (providers.some(id => ['recaptcha-v2', 'recaptcha-v3'].includes(id)) && ['www.google.com', 'recaptcha.google.com', 'www.recaptcha.net'].includes(url.hostname) && url.pathname.startsWith('/recaptcha/')) ||
+      (providers.includes('aws-waf') && /(^|\.)awswaf\.com$/.test(url.hostname)) ||
+      (providers.includes('binance') && /(^|\.)binance\.com$/.test(url.hostname)) ||
       (providers.includes('hcaptcha') && /(^|\.)hcaptcha\.(com|net)$/.test(url.hostname)) ||
       (providers.includes('mtcaptcha') && /(^|\.)mtcaptcha\.com$/.test(url.hostname)) ||
       (providers.some(id => id === 'geetest-v3' || id === 'geetest-v4') && /(^|\.)(geetest|geevisit)\.com$/.test(url.hostname)) ||
@@ -41,7 +46,8 @@ export function imageURL(value, siteOrigin, providers = Object.keys(PROVIDER_ORI
     const url = new URL(value);
     if (url.username || url.password || !['https:', 'http:'].includes(url.protocol)) return false;
     return url.origin === siteOrigin || providerURL(value, providers) ||
-      (providers.includes('recaptcha-v2') && url.protocol === 'https:' && url.hostname === 'www.gstatic.com' && url.pathname.startsWith('/recaptcha/'));
+      (providers.includes('recaptcha-v2') && url.protocol === 'https:' && url.hostname === 'www.gstatic.com' && url.pathname.startsWith('/recaptcha/')) ||
+      (providers.includes('binance') && url.protocol === 'https:' && url.hostname === 'bin.bnbstatic.com' && url.pathname.startsWith('/image/antibot/'));
   } catch { return false; }
 }
 
