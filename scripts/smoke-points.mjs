@@ -65,6 +65,27 @@ try {
   checks.push('Stopping after the first point prevents further input and verification');
   await open();await prepare();await frame.evaluate(()=>document.querySelector('.button-submit').textContent='Next');assert.match(await apply(),/already has selections/);assert.equal(await frame.evaluate(()=>counts.clicks.length),0);
   checks.push('Existing point selections are preserved');
+  await open();
+  assert.match(await frame.evaluate(() => { const prompt=document.createElement('div');prompt.className='prompt-text';prompt.textContent='Drag the shape into the hole';document.querySelector('.challenge-container').prepend(prompt);try{pointAdapter.hcaptchaPointsSnapshot();return '';}catch(error){return error.message;} }),/unsupported/);
+  assert.equal(await frame.evaluate(()=>counts.clicks.length+counts.verify),0);
+  checks.push('A visible unsupported instruction cannot fall through to OCR of an older canvas header');
+  for(const change of ['instruction','instruction-removed','layout','rotation','overlay','verify-control']){
+    await open();
+    await frame.evaluate(()=>{const prompt=document.createElement('div');prompt.className='prompt-text';prompt.textContent='Click the THREE matching shapes';document.querySelector('.challenge-container').prepend(prompt);});
+    await prepare();
+    const error=await frame.evaluate(async change=>{try{await pointAdapter.applyPointSelection(challenge,solution,async()=>{
+      if(counts.clicks.length===3){
+        if(change==='instruction')document.querySelector('.prompt-text').textContent='Click the TWO matching shapes';
+        if(change==='instruction-removed')document.querySelector('.prompt-text').remove();
+        if(change==='layout')document.querySelector('.challenge-container').style.transform='translateX(4px)';
+        if(change==='rotation')challenge.image.style.transform='rotate(180deg)';
+        if(change==='overlay'){const cover=document.createElement('div');cover.style.cssText='position:fixed;inset:0;z-index:999;background:#fff';document.body.append(cover);}
+        if(change==='verify-control')challenge.verify.after(challenge.verify.cloneNode(true));
+      }return true;
+    },expectedImage);return '';}catch(error){return error.message;}},change);
+    assert.match(error,/changed|moved|unsupported|obscured|ambiguous/,change);assert.equal(await frame.evaluate(()=>counts.clicks.length),3);assert.equal(await frame.evaluate(()=>counts.verify+counts.submit),0);
+  }
+  checks.push('Final-await instruction, layout, rotation, overlay and control mutations prevent Verify');
   assert.match(await frame.evaluate(()=>{try{pointAdapter.resolvePointInstruction(challenge,'Drag the shape into the hole');return '';}catch(e){return e.message;}}),/unsupported/);
   checks.push('Unrecognized OCR instructions cannot enable the point adapter');
   await open('scaled');await prepare();assert.equal(await apply(),null);assert.equal(await frame.locator('#checkbox').getAttribute('aria-checked'),'true');

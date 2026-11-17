@@ -1,7 +1,7 @@
 <!doctype html><meta charset="utf-8"><title>Static point fixture</title>
 <style>body{margin:16px;font:16px Arial}.challenge-container{width:360px;transform-origin:top left}.challenge-view{position:relative;width:360px;height:320px}canvas{width:360px;height:320px}.button-submit{display:inline-block;padding:12px;background:#ddd;cursor:pointer}</style>
 <div class="challenge-container"><div class="challenge-view"><canvas width="720" height="640"></canvas></div></div><div role="button" class="button-submit">Skip</div>
-<div id="checkbox" aria-checked="false" hidden></div>
+<div id="checkbox" role="checkbox" aria-checked="false" style="width:26px;height:26px"></div>
 <form><button type="submit">Submit application</button></form>
 <script>
 const mode=new URL(location.href).searchParams.get('mode');

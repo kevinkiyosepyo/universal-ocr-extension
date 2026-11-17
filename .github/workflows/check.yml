@@ -21,6 +21,10 @@ jobs:
       - run: sudo apt-get install -y fonts-noto-cjk
       - run: npm run test:browser
       - run: npm run test:automation
+      - run: npm run test:provider-detection
+      - run: npm run test:provider-scan
+      - run: npm run test:challenge-dom
+      - run: npm run test:challenge-preview
       - run: npm run test:challenges
       - run: npm run test:challenge-stop
       - run: npm run test:points

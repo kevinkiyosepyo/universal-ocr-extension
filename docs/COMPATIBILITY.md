@@ -25,6 +25,7 @@ This is an independent implementation, not a copy of CaptchaSonic's private solv
 | reCAPTCHA v2 visible | Grid adapter, sprite capture, dynamic replacements, multi-round verification; one successful 2.1 public-demo session | Reliable acceptance across sites; audio / non-grid modes |
 | reCAPTCHA v2 invisible | Detection distinguished from v3; existing adapter can see a visible image grid | Trigger and callback flows remain unverified; no form Submit trigger |
 | reCAPTCHA v3 | Native explicit action through the standard Google API; full-extension official-demo verification passed at score 0.9 | Arbitrary site backend/callback integration and Enterprise; a token alone is not a server receipt |
+| reCAPTCHA Enterprise | Explicit script/frame detection, including the observed Greenhouse invisible frame | Enterprise verification and employer acceptance |
 | AWS WAF | SDK-derived English static image grids and bifurcated image sliders; scoped provider Confirm; distinct puzzle-correct status | Live acceptance, token issuance, path-dot/audio modes, and a usable test deployment |
 | Geetest v3 | Reconstructed canvas slider adapter and observed popup layout; official demo reached recognition but stopped on low confidence | Live acceptance and click / non-slider modes |
 | Geetest v4 | Guarded slider, ordered-reference icons, and 3×3 reference-image grids; SDK sprite reconstruction | Live reliability: slider rejected; image recognition can abstain or be incorrect. Other game/audio modes remain unsupported |
@@ -78,3 +79,7 @@ See [the 2.4 verification report](verification-2.4.md) for the TikTok SDK contra
 ## Version 2.5 evidence
 
 See [the 2.5 verification report](verification-2.5.md) for current native-v3, AWS WAF, Binance, Geetest image-mode, and cancellation evidence. The earlier notes about absent Binance SDK contracts are historical: the current public BCaptcha SDK was inspected for this release. AWS SDK-derived adapter tests are now available, but a usable hosted AWS acceptance test remains unavailable.
+
+## Version 2.5.1 evidence
+
+See [2.5.1 verification](verification-2.5.1.md) for preview-only behavior, stale-grid and hCaptcha point guards, Enterprise identification, model-readiness checks, and native Chrome job-site observations. No provider status is upgraded to live-verified by this patch.

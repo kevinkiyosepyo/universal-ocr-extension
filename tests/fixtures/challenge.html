@@ -1,6 +1,6 @@
 <!doctype html><meta charset="utf-8"><title>Provider workflow fixture</title>
 <style>body{font:16px Arial;margin:16px}table{border-spacing:0}td{width:80px;height:80px;padding:0;overflow:hidden;position:relative}.tile-wrapper{width:80px;height:80px;overflow:hidden;position:relative}img{position:absolute;pointer-events:none}.rc-imageselect-tileselected .tile-wrapper,.rc-imageselect-dynamic-selected .tile-wrapper{transform:scale(.9)}.task-grid{display:grid;grid-template-columns:repeat(3,80px)}.task-image{width:80px;height:80px;background-size:cover}.selected{outline:3px solid blue}button{margin:12px 0;padding:10px}</style>
-<div id="recaptcha-anchor" aria-checked="false"></div><div id="checkbox" aria-checked="false"></div>
+<div id="recaptcha-anchor" role="checkbox" aria-checked="false" style="width:24px;height:24px"></div><div id="checkbox" role="checkbox" aria-checked="false" style="width:24px;height:24px"></div>
 <div class="rc-imageselect-desc-wrapper"></div><div class="rc-imageselect-target"></div><div class="challenge-container"><div class="prompt-text"></div><div class="task-grid"></div></div><form id="guard"><button id="application" type="submit">Submit application</button></form><button id="recaptcha-verify-button" type="button">Verify</button><button class="button-submit" type="button">Verify</button>
 <script>
 const mode=new URL(location.href).searchParams.get('mode')||'static';

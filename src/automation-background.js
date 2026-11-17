@@ -1,5 +1,5 @@
 import { api } from './platform.js';
-import { validateRule, matchOrigin, PROVIDERS } from './providers.js';
+import { validateRule, matchOrigin, PROVIDERS, scanProviders } from './providers.js';
 import { SolverClient } from '../shared/client.js';
 import { endpointURL, imageBase64 } from '../shared/protocol.js';
 import { recognize } from './ocr.js';
@@ -123,13 +123,9 @@ export async function automationRoute(message, sender, isUI) {
     case 'SCAN_PAGE': {
       const [tab] = await api.tabs.query({ active: true, currentWindow: true });
       if (!tab?.id) throw new Error('Open a webpage first.');
-      const inspect = (catalog) => catalog.flatMap((provider) => {
-        const matches = provider.selectors.filter((selector) => document.querySelector(selector));
-        return matches.length ? [{ id: provider.id, name: provider.name, mode: provider.mode, selectors: matches, origin: location.origin, status: 'detected' }] : [];
-      });
       let results;
-      try { results = await api.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, func: inspect, args: [PROVIDERS] }); }
-      catch { results = await api.scripting.executeScript({ target: { tabId: tab.id }, func: inspect, args: [PROVIDERS] }); }
+      try { results = await api.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, func: scanProviders, args: [null, PROVIDERS] }); }
+      catch { results = await api.scripting.executeScript({ target: { tabId: tab.id }, func: scanProviders, args: [null, PROVIDERS] }); }
       return results.flatMap((result) => result.result || []);
     }
     default: throw new Error('Unknown automation action.');

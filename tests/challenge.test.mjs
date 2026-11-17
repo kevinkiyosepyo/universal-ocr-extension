@@ -55,6 +55,6 @@ test('invisible v2 and explicit rendering scripts are not mistaken for score-bas
   assert.equal(scoreScript('https://www.google.com/recaptcha/api.js?render=explicit'), false);
   assert.equal(scoreScript('https://www.google.com/recaptcha/api.js?render=onload'), false);
   assert.equal(scoreScript('https://www.google.com/recaptcha/api.js?hl=en&render=site-key'), true);
-  assert.equal(scoreScript('https://www.recaptcha.net/recaptcha/enterprise.js?render=site-key'), true);
+  assert.equal(scoreScript('https://www.recaptcha.net/recaptcha/enterprise.js?render=site-key'), false);
   assert.equal(scoreScript('https://www.google.com.evil.test/recaptcha/api.js?render=site-key'), false);
 });

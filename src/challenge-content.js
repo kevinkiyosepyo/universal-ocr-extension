@@ -1,5 +1,5 @@
 import { api } from './platform.js';
-import { snapshot, captureGrid, captureElement, fingerprint, selected, clickTile, verifyChallenge, verifiedWidget, rejectedWidget } from './challenge-dom.js';
+import { snapshot, captureGrid, captureElement, fingerprint, selected, clickTile, verifyChallenge, verifiedWidget, rejectedWidget, assertGridCurrent } from './challenge-dom.js';
 import { gridChanges } from './challenge-common.js';
 import { widgetSnapshot, captureWidget, applyText, applyPuzzle, puzzleDrag, widgetVerified, widgetFailure, managedSnapshot, startManaged, textFeedback } from './challenge-widgets.js';
 import { capturePointHeader, resolvePointInstruction, pointSelection, applyPointSelection, pointSceneMatches } from './hcaptcha-points.js';
@@ -140,7 +140,7 @@ if (globalThis.__universalChallenge) {
         return;
       }
       if (lastFingerprint === captured.fingerprint) {
-        if (challenge.dynamic && Date.now() - lastActionAt > 10_000) throw new Error('Selected images did not refresh. Complete the challenge manually.');
+        if (session.autoVerify && challenge.dynamic && Date.now() - lastActionAt > 10_000) throw new Error('Selected images did not refresh. Complete the challenge manually.');
         return;
       }
       await report('recognizing', `Reading the ${challenge.rows} × ${challenge.columns} ${challenge.provider === 'hcaptcha' ? 'hCaptcha' : 'reCAPTCHA'} grid…`);
@@ -148,31 +148,44 @@ if (globalThis.__universalChallenge) {
       if (!await current(expected)) return;
       const latest = snapshot();
       if (!latest || (await captureGrid(latest, url => send('CHALLENGE_FETCH', { url }), cache)).fingerprint !== captured.fingerprint) { if (++staleCount >= 4) throw new Error('The challenge keeps changing. Wait for it to settle and start again.'); return; }
-      staleCount = 0;
       if (solution.confidence < .75) throw new Error('Recognition is uncertain. Complete this challenge manually.');
       const changes = gridChanges(solution.selected, latest.tiles.map(selected), latest.tiles.length);
+      if (!session.autoVerify) {
+        staleCount = 0; lastFingerprint = captured.fingerprint; lastActionAt = Date.now();
+        const squares = [...solution.selected].sort((a, b) => a - b).map(index => index + 1);
+        await report('review', 'Grid preview ready. No squares or verification controls were clicked.', squares.length ? `Squares (counting from 1, left to right): ${squares.join(', ')}` : 'No matching squares.');
+        return;
+      }
       await report('selecting', `Selecting ${solution.selected.length} matching ${solution.selected.length === 1 ? 'square' : 'squares'}…`);
       for (const index of changes) {
         if (!await current(expected)) return;
-        if (!latest.root.isConnected || !latest.tiles[index].isConnected) throw new Error('The challenge changed while selecting.');
+        assertGridCurrent(latest);
         // For replacement grids, never toggle an already selected tile off.
         if (latest.dynamic && selected(latest.tiles[index])) continue;
         clickTile(latest.tiles[index], latest.root); await pause(90);
       }
       lastFingerprint = captured.fingerprint; lastActionAt = Date.now();
-      if (latest.dynamic && solution.selected.length) { await report('waiting-images', 'Waiting for replacement images…'); return; }
+      if (latest.dynamic && solution.selected.length) { staleCount = 0; await report('waiting-images', 'Waiting for replacement images…'); return; }
       // Static grids must reflect the requested selection before Verify.
+      assertGridCurrent(latest);
       if (!latest.dynamic && gridChanges(solution.selected, latest.tiles.map(selected), latest.tiles.length).length) throw new Error('The widget did not accept automatic clicks. Select the images manually.');
       if (session.autoVerify) {
         if (!await current(expected)) return;
         await report('verifying', 'Waiting for the provider to verify the challenge…');
         if (!await current(expected)) return;
-        verifyChallenge(latest); lastVerified = captured.fingerprint;
+        assertGridCurrent(latest);
+        verifyChallenge(latest); lastVerified = captured.fingerprint; staleCount = 0;
       } else {
         await report('review', 'Selections ready. Review the grid, then press its Verify or Next button.');
         // Keep observing: manual Verify may display the next challenge round.
       }
     } catch (error) {
+      if (error.code === 'GRID_CHANGED' && !stopped && generation === expected && ++staleCount < 4) {
+        lastStable = lastFingerprint = lastVerified = null; stableAt = 0;
+        await report('waiting-images', 'The grid changed. Waiting for fresh images before continuing.').catch(() => {});
+        return;
+      }
+      if (error.code === 'GRID_CHANGED') error = new Error('The grid keeps changing. Assistance stopped; wait for it to settle before starting again.');
       if (!stopped && generation === expected) { await report('failed', error.message).catch(() => {}); stopped = true; resetSuccessObserver(); show({ detail: error.message }); }
     } finally { busy = false; }
   }

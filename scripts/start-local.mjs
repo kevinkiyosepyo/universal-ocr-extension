@@ -49,8 +49,18 @@ try {
   }
   let key = process.env.OCR_API_KEY;
   if (!key) try { key = (await readFile(local + 'api-key', 'utf8')).trim(); } catch { /* The companion creates it on first start. */ }
-  let connected = false;
-  if (key) try { connected = (await new SolverClient({ endpoint, key }).request('health', { retries: 0, signal: AbortSignal.timeout(3000) })).status === 'ok'; } catch { /* Start a new companion below. */ }
+  let connected = false, existingHealth;
+  if (key) try { existingHealth = await new SolverClient({ endpoint, key }).request('health', { retries: 0, signal: AbortSignal.timeout(3000) }); } catch { /* Start a new companion below when no authenticated health response is available. */ }
+  if (existingHealth) {
+    if (existingHealth.status !== 'ok') throw new Error('The existing companion did not report a healthy status. No replacement service was started.');
+    const expectedText = textModel || model;
+    if (existingHealth.vision?.model !== model || existingHealth.text?.model !== expectedText) {
+      throw new Error(`The existing companion uses vision ${existingHealth.vision?.model || 'unknown'} and text ${existingHealth.text?.model || 'unknown'}; the requested models are ${model} and ${expectedText}. Reconfigure that companion explicitly. No replacement service was started.`);
+    }
+    const unavailable = ['vision', 'text'].filter(kind => existingHealth[kind]?.available !== true);
+    if (unavailable.length) throw new Error(`The existing companion is running, but its ${unavailable.join(' and ')} model is unavailable. Check its Ollama endpoint and downloaded models. No replacement service was started.`);
+    connected = true;
+  }
   if (!connected) {
     console.log('Warming the vision model…');
     const image = await sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="256" height="100"><rect width="256" height="100" fill="white"/><text x="20" y="70" font-family="Arial" font-size="48">READY</text></svg>')).png().toBuffer();

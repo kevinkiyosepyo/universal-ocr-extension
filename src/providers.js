@@ -1,6 +1,7 @@
 export const PROVIDERS = [
   { id: 'turnstile', name: 'Cloudflare Turnstile', selectors: ['.cf-turnstile', 'iframe[src*="challenges.cloudflare.com"]', 'script[src*="challenges.cloudflare.com/turnstile"]'], hosts: ['challenges.cloudflare.com'], mode: 'provider-token' },
   { id: 'recaptcha-v2', name: 'reCAPTCHA v2', selectors: ['.g-recaptcha:not([data-action])', 'iframe[src*="recaptcha"][src*="anchor"]', '.rc-imageselect'], hosts: ['google.com', 'recaptcha.net'], mode: 'widget' },
+  { id: 'recaptcha-enterprise', name: 'reCAPTCHA Enterprise (verification unintegrated)', selectors: ['iframe[src*="/recaptcha/enterprise/"]', 'script[src*="/recaptcha/enterprise.js"]'], hosts: ['google.com', 'recaptcha.net'], mode: 'provider-token' },
   { id: 'recaptcha-v3', name: 'reCAPTCHA v3', selectors: ['.g-recaptcha[data-action]', 'script[src*="/recaptcha/api.js"]', 'script[src*="/recaptcha/enterprise.js"]'], hosts: ['google.com', 'recaptcha.net'], mode: 'provider-token' },
   { id: 'hcaptcha', name: 'hCaptcha / grids and matching shapes', selectors: ['.h-captcha', 'iframe[src*="hcaptcha.com"]'], hosts: ['hcaptcha.com'], mode: 'widget' },
   { id: 'aws-waf', name: 'AWS WAF CAPTCHA', selectors: ['awswaf-captcha', '#aws-waf-captcha-container', 'script[src*="captcha-sdk.awswaf.com"]', 'iframe[src*="awswaf.com"]'], hosts: ['awswaf.com'], mode: 'widget' },
@@ -16,20 +17,60 @@ export const PROVIDERS = [
 ];
 
 export function scoreScript(value) {
-  try { const url = new URL(value), render = url.searchParams.get('render'); return url.protocol === 'https:' && !url.username && !url.password && ['www.google.com', 'www.recaptcha.net', 'recaptcha.google.com'].includes(url.hostname) && /^\/recaptcha\/(api|enterprise)\.js$/.test(url.pathname) && Boolean(render && !['explicit', 'onload'].includes(render)); }
+  try { const url = new URL(value), render = url.searchParams.get('render'); return url.protocol === 'https:' && !url.username && !url.password && ['www.google.com', 'www.recaptcha.net', 'recaptcha.google.com'].includes(url.hostname) && /^\/recaptcha\/api\.js$/.test(url.pathname) && Boolean(render && !['explicit', 'onload'].includes(render)); }
   catch { return false; }
 }
 
-export function scanProviders(document) {
-  return PROVIDERS.flatMap((provider) => {
+export function enterpriseURL(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password && ['www.google.com', 'recaptcha.google.com', 'www.recaptcha.net', 'recaptcha.net'].includes(url.hostname) && (/^\/recaptcha\/enterprise\.js$/.test(url.pathname) || /^\/recaptcha\/enterprise\/(anchor|bframe)$/.test(url.pathname));
+  } catch { return false; }
+}
+
+// Chrome serializes this function without its module scope. Both the catalog
+// and document argument are explicit; null selects the injected frame's DOM.
+export function scanProviders(document, catalog) {
+  document ||= globalThis.document;
+  const recaptchaURL = value => {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'https:' && !url.username && !url.password && ['www.google.com', 'recaptcha.google.com', 'www.recaptcha.net', 'recaptcha.net'].includes(url.hostname) ? url : null;
+    } catch { return null; }
+  };
+  const isEnterprise = value => {
+    const url = recaptchaURL(value);
+    return Boolean(url && (/^\/recaptcha\/enterprise\.js$/.test(url.pathname) || /^\/recaptcha\/enterprise\/(anchor|bframe)$/.test(url.pathname)));
+  };
+  const isScore = value => {
+    const url = recaptchaURL(value), render = url?.searchParams.get('render');
+    return Boolean(url && url.hostname !== 'recaptcha.net' && url.pathname === '/recaptcha/api.js' && render && !['explicit', 'onload'].includes(render));
+  };
+  const ownEnterprise = isEnterprise(document.URL);
+  const enterprise = ownEnterprise || [...document.querySelectorAll('iframe[src*="/recaptcha/enterprise/"], script[src*="/recaptcha/enterprise.js"]')].some(element => isEnterprise(element.src));
+  let origin;
+  try { origin = new URL(document.URL).origin; } catch { /* Detached fixture document. */ }
+  return catalog.flatMap((provider) => {
     const matches = [];
+    if (provider.id === 'recaptcha-enterprise' && ownEnterprise) matches.push({ element: document.documentElement, selector: 'document URL', visible: document.documentElement.getBoundingClientRect().width > 0 });
     for (const selector of provider.selectors) for (const element of document.querySelectorAll(selector)) {
-      if (provider.id === 'recaptcha-v3' && element.tagName === 'SCRIPT' && !scoreScript(element.src)) continue;
+      if (provider.id === 'recaptcha-enterprise' && !isEnterprise(element.src)) continue;
+      if (['recaptcha-v2', 'recaptcha-v3'].includes(provider.id)) {
+        if (ownEnterprise || isEnterprise(element.src)) continue;
+        // Generic g-recaptcha markup is shared by Enterprise and standard
+        // integrations; it cannot identify the standard API on its own.
+        if (enterprise && !['IFRAME', 'SCRIPT'].includes(element.tagName)) continue;
+      }
+      if (provider.id === 'recaptcha-v2' && element.tagName === 'IFRAME') {
+        const url = recaptchaURL(element.src);
+        if (!url || !/^\/recaptcha\/api2\/anchor$/.test(url.pathname)) continue;
+      }
+      if (provider.id === 'recaptcha-v3' && element.tagName === 'SCRIPT' && !isScore(element.src)) continue;
       if (matches.some((entry) => entry.element === element)) continue;
       const rect = element.getBoundingClientRect();
       matches.push({ element, selector, visible: rect.width > 0 && rect.height > 0 });
     }
-    return matches.length ? [{ id: provider.id, name: provider.name, mode: provider.mode, count: matches.length, visible: matches.some((item) => item.visible), selectors: [...new Set(matches.map((item) => item.selector))], status: 'detected' }] : [];
+    return matches.length ? [{ id: provider.id, name: provider.name, mode: provider.mode, count: matches.length, visible: matches.some((item) => item.visible), selectors: [...new Set(matches.map((item) => item.selector))], origin, status: 'detected' }] : [];
   });
 }
 

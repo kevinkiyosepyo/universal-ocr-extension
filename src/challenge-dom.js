@@ -1,4 +1,14 @@
-import { gridShape } from './challenge-common.js';
+import { gridShape, providerURL } from './challenge-common.js';
+
+const gridCaptures = new WeakMap();
+const gridNodeIds = new WeakMap();
+let nextGridNodeId = 1;
+const gridNodeId = node => {
+  if (!node) return null;
+  if (!gridNodeIds.has(node)) gridNodeIds.set(node, nextGridNodeId++);
+  return gridNodeIds.get(node);
+};
+const changedGrid = () => Object.assign(new Error('The challenge images changed. Waiting for a stable grid.'), { code: 'GRID_CHANGED' });
 
 export const visible = (element) => {
   if (!element?.isConnected) return false;
@@ -23,8 +33,14 @@ export function snapshot() {
     // During round transitions Google keeps two sliding tables in the DOM.
     // Neither partial table is a stable challenge to analyze or click.
     if (tables.length !== 1) return null;
-    const tiles = [...tables[0].querySelectorAll('td')].filter(tile => visible(tile) && tile.querySelector('img,canvas'));
-    if (!tiles.length) return null;
+    const tiles = [...tables[0].querySelectorAll('td')];
+    if (!tiles.length || tiles.some(tile => !visible(tile) || !tile.querySelector('img,canvas'))) return null;
+    // A dynamic cell can briefly contain both its departing and replacement
+    // image. Wait for one decoded visible source instead of capturing either.
+    if (tiles.some(tile => {
+      const images = [...tile.querySelectorAll('img,canvas')].filter(visible);
+      return images.length !== 1 || (images[0] instanceof HTMLImageElement && (!images[0].complete || !images[0].naturalWidth));
+    })) return null;
     const shape = gridShape(tiles);
     const description = first('.rc-imageselect-desc-wrapper');
     const prompt = description?.innerText?.trim();
@@ -44,8 +60,9 @@ export function snapshot() {
   return null;
 }
 export function verifiedWidget(providers) {
-  return (providers.includes('recaptcha-v2') && Boolean(document.querySelector('#recaptcha-anchor[aria-checked="true"]'))) ||
-    (providers.includes('hcaptcha') && Boolean(document.querySelector('#checkbox[aria-checked="true"]'))) ||
+  const providerFrame = provider => window !== window.top && providerURL(location.href, [provider]);
+  return (providers.includes('recaptcha-v2') && providerFrame('recaptcha-v2') && Boolean(first('#recaptcha-anchor[role="checkbox"][aria-checked="true"]'))) ||
+    (providers.includes('hcaptcha') && providerFrame('hcaptcha') && Boolean(first('#checkbox[role="checkbox"][aria-checked="true"]'))) ||
     (providers.includes('mtcaptcha') && [...document.querySelectorAll('input.mtcaptcha-verifiedtoken')].some(input => input.value.length > 0));
 }
 export function rejectedWidget() {
@@ -60,8 +77,18 @@ export function assertControl(element, root) {
   if (control?.form && control.type === 'submit') throw new Error('Application submission controls are not supported.');
   if (/\b(application|apply|submit application)\b/i.test(control?.getAttribute('aria-label') || control?.textContent || '')) throw new Error('Application submission controls are not supported.');
 }
-export function clickTile(tile, root) { assertControl(tile, root); tile.click(); }
+export function clickTile(tile, root) {
+  const captured = gridCaptures.get(root);
+  if (!captured || !captured.challenge.tiles.includes(tile)) throw changedGrid();
+  assertGridCurrent(captured.challenge);
+  assertControl(tile, root);
+  const index = captured.challenge.tiles.indexOf(tile);
+  captured.selection[index] = !captured.selection[index];
+  tile.click();
+}
 export function verifyChallenge(challenge) {
+  assertGridCurrent(challenge);
+  if (challenge.dynamic && challenge.tiles.some(selected)) throw changedGrid();
   assertControl(challenge.verify);
   // These exact controls live inside a recognized provider document. Never use
   // a generic Submit selector or call application callbacks / token setters.
@@ -70,12 +97,43 @@ export function verifyChallenge(challenge) {
 }
 function descriptor(tile) {
   const rect = tile.getBoundingClientRect();
-  let element = tile.querySelector('img, canvas');
-  if (!element) element = [tile, ...tile.querySelectorAll('*')].find(node => getComputedStyle(node).backgroundImage.startsWith('url('));
+  const images = [...tile.querySelectorAll('img, canvas')].filter(visible);
+  if (images.length > 1) throw changedGrid();
+  let element = images[0];
+  if (!element) element = [tile, ...tile.querySelectorAll('*')].find(node => visible(node) && getComputedStyle(node).backgroundImage.startsWith('url('));
   if (!element) throw new Error('The challenge image has an unsupported rendering format.');
+  if (element instanceof HTMLImageElement && (!element.complete || !element.naturalWidth)) throw changedGrid();
   const style = getComputedStyle(element), imageRect = element.getBoundingClientRect();
   const src = element instanceof HTMLImageElement ? element.currentSrc || element.src : style.backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
   return { element, src, width: rect.width, height: rect.height, left: imageRect.left - rect.left, top: imageRect.top - rect.top, imageWidth: imageRect.width, imageHeight: imageRect.height, backgroundSize: style.backgroundSize, backgroundPosition: style.backgroundPosition };
+}
+
+function gridState(challenge) {
+  const current = snapshot();
+  if (!current || current.root !== challenge.root || current.provider !== challenge.provider || current.prompt !== challenge.prompt || current.rows !== challenge.rows || current.columns !== challenge.columns || current.dynamic !== challenge.dynamic || current.layout !== challenge.layout || current.verify !== challenge.verify || current.tiles.length !== challenge.tiles.length || current.tiles.some((tile, index) => tile !== challenge.tiles[index])) throw changedGrid();
+  const descriptors = challenge.tiles.map(descriptor);
+  const images = descriptors.map(item => {
+    const image = item.element;
+    return {
+      element: image, source: item.src, canvas: image instanceof HTMLCanvasElement ? image.toDataURL('image/png') : undefined,
+      // Selection animations shrink images without changing the source crop.
+      // A replacement changes its URL, node, or sprite class and is stale.
+      sprite: image instanceof HTMLImageElement ? [...image.classList].filter(name => /^rc-image-tile-/.test(name)).sort().join(' ') : undefined,
+      backgroundSize: image instanceof HTMLImageElement || image instanceof HTMLCanvasElement ? undefined : item.backgroundSize,
+      backgroundPosition: image instanceof HTMLImageElement || image instanceof HTMLCanvasElement ? undefined : item.backgroundPosition,
+    };
+  });
+  return { descriptors, images, verifyParent: challenge.verify?.parentElement };
+}
+function sameGridState(before, after, layout = false) {
+  return before.verifyParent === after.verifyParent && before.images.length === after.images.length && before.images.every((image, index) => {
+    const next = after.images[index];
+    return Object.keys(image).every(key => image[key] === next[key]) && (!layout || ['width', 'height', 'left', 'top', 'imageWidth', 'imageHeight', 'backgroundSize', 'backgroundPosition'].every(key => before.descriptors[index][key] === after.descriptors[index][key]));
+  });
+}
+export function assertGridCurrent(challenge) {
+  const captured = gridCaptures.get(challenge.root);
+  if (!captured || !sameGridState(captured.state, gridState(challenge)) || challenge.tiles.some((tile, index) => selected(tile) !== captured.selection[index])) throw changedGrid();
 }
 export function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -164,7 +222,7 @@ function backgroundGeometry(item, image) {
   return { x: item.left + offset(pos[0], boxWidth - width), y: item.top + offset(pos[1], boxHeight - height), width, height };
 }
 export async function captureGrid(challenge, fetchImage, cache = new Map()) {
-  const descriptors = challenge.tiles.map(descriptor);
+  const state = gridState(challenge), { descriptors } = state;
   const urls = [...new Set(descriptors.map(item => item.src).filter(Boolean))];
   for (const src of cache.keys()) if (!urls.includes(src)) cache.delete(src);
   await Promise.all(urls.map(async src => {
@@ -173,6 +231,7 @@ export async function captureGrid(challenge, fetchImage, cache = new Map()) {
       cache.set(src, await loadImage(data));
     }
   }));
+  if (!sameGridState(state, gridState(challenge), true)) throw changedGrid();
   // Preserve the visible crop of sprite images, including replacement tiles.
   // Fixed cells prevent scaled selection borders from changing model geometry.
   const cell = 128, canvas = document.createElement('canvas'); canvas.width = cell * challenge.columns; canvas.height = cell * challenge.rows;
@@ -192,7 +251,16 @@ export async function captureGrid(challenge, fetchImage, cache = new Map()) {
     context.restore();
   }
   const image = canvas.toDataURL('image/png');
-  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(challenge.prompt + '\n' + image));
+  // Equal pixels can belong to a newly mounted challenge or Verify control.
+  // Keep those generations distinct while ignoring selection-border styles.
+  const identity = JSON.stringify({
+    provider: challenge.provider, rows: challenge.rows, columns: challenge.columns,
+    root: gridNodeId(challenge.root), tiles: challenge.tiles.map(gridNodeId), verify: gridNodeId(challenge.verify), verifyParent: gridNodeId(state.verifyParent),
+    images: state.images.map(({ element, canvas, ...source }) => ({ ...source, node: gridNodeId(element) })),
+  });
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(challenge.prompt + '\n' + identity + '\n' + image));
   const fingerprint = [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+  if (!sameGridState(state, gridState(challenge), true)) throw changedGrid();
+  gridCaptures.set(challenge.root, { challenge, state, selection: challenge.tiles.map(selected) });
   return { image, fingerprint };
 }

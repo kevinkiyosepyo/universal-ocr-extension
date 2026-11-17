@@ -79,3 +79,7 @@ An empty body hashes as an empty byte sequence. Reused nonces are rejected. The 
 The reCAPTCHA v3 adapter runs Google's documented client API in the page; it is not a local solver task type. A generic issued token ends at `token-issued` and is neither persisted nor passed to arbitrary site callbacks. Only the reviewed official demo includes a built-in backend verification step.
 
 AWS `puzzle-correct` means its SDK displayed a correct-puzzle screen. The SDK requests a token afterward, so this state does not count as token issuance or a submitted-form receipt. `widget-verified` requires the adapter's explicit provider receipt. The activity counter includes that state but excludes `token-issued` and `puzzle-correct`.
+
+### Challenge preview behavior
+
+With `CHALLENGE_START.autoVerify` false (the default), challenge assistance emits review suggestions without applying input. This includes grid cells in version 2.5.1; earlier versions selected grid cells before manual Verify. Preview square numbers are one-based, while recognition API indices remain zero-based. Enterprise script/frame detection does not enable standard native-v3 execution. A provider completion callback can resume a pending site form, so CAPTCHA acceptance is not a no-submission guarantee.

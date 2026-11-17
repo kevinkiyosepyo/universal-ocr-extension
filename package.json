@@ -1,6 +1,6 @@
 {
   "name": "universal-ocr-extension",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "private": true,
   "description": "Local OCR, visual recognition tools, and opt-in browser automation",
   "type": "module",
@@ -40,7 +40,11 @@
     "test:provider-routes": "node scripts/smoke-provider-routes.mjs",
     "test:aws-waf-slide": "node scripts/smoke-aws-waf-slide.mjs",
     "test:geetest-images": "node scripts/smoke-geetest-images.mjs",
-    "test:challenge-stop": "node scripts/smoke-challenge-stop.mjs"
+    "test:challenge-stop": "node scripts/smoke-challenge-stop.mjs",
+    "test:challenge-dom": "node scripts/smoke-grid-dom.mjs",
+    "test:challenge-preview": "node scripts/smoke-challenge-preview.mjs",
+    "test:provider-detection": "node scripts/smoke-provider-detection.mjs",
+    "test:provider-scan": "node scripts/smoke-provider-scan.mjs"
   },
   "dependencies": {
     "@tesseract.js-data/chi_sim": "1.0.0",
